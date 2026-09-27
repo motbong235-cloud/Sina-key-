@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Sina Key</title>
+<meta name="theme-color" content="#070B14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Kantumruy+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060A12;--bg2:#0B1220;--card:#101827;--card-hover:#152033;
+  --line:rgba(99,130,246,.16);--line2:rgba(148,163,184,.12);
+  --text:#F1F5F9;--muted:#94A3B8;--blue:#3B82F6;--blue2:#2563EB;
+  --cyan:#22D3EE;--gold:#FBBF24;--green:#34D399;--red:#F87171;
+  --radius:16px;--shadow:0 12px 40px rgba(0,0,0,.4);
+  --font:'Inter','Kantumruy Pro',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--font);
+  background:radial-gradient(900px 500px at 0% -10%,rgba(37,99,235,.22),transparent 55%),
+             radial-gradient(700px 400px at 100% 0%,rgba(34,211,238,.1),transparent 50%),var(--bg);
+  color:var(--text);min-height:100vh;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button,input{font-family:inherit}
+button{cursor:pointer;border:none;background:none}
+.icon{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.icon-sm{width:14px;height:14px}.icon-lg{width:26px;height:26px}
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:rgba(6,10,18,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--line2)}
+.logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3B82F6,#22D3EE);
+  display:grid;place-items:center;font-weight:800;font-size:13px;color:#041018;box-shadow:0 0 24px rgba(59,130,246,.4)}
+.brand h1{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.brand p{font-size:11px;color:var(--muted);margin-top:1px;font-weight:500}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;
+  font-weight:600;font-size:13px;padding:10px 14px;transition:transform .12s,background .15s}
+.btn:active{transform:scale(.97)}
+.btn-ghost{background:var(--card);color:var(--text);border:1px solid var(--line2)}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 6px 20px rgba(37,99,235,.35)}
+.btn-buy{width:100%;padding:12px;background:linear-gradient(135deg,#FBBF24,#F59E0B);color:#1A1200;
+  font-weight:700;border-radius:12px;box-shadow:0 4px 0 #B45309,0 8px 20px rgba(0,0,0,.25)}
+.btn-buy:disabled{opacity:.45;box-shadow:none;cursor:not-allowed}
+.hero{margin:16px 16px 8px;padding:24px 20px;border-radius:20px;
+  background:linear-gradient(145deg,rgba(37,99,235,.28),rgba(15,23,42,.6));border:1px solid var(--line);position:relative;overflow:hidden}
+.hero h2{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:8px}
+.hero p{color:var(--muted);font-size:13px;max-width:380px;line-height:1.55}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:6px 11px;
+  border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);color:#BFDBFE}
+.chip .icon{width:12px;height:12px}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cat-btn{flex:0 0 auto;padding:9px 15px;border-radius:999px;border:1px solid var(--line2);
+  background:var(--card);color:var(--muted);font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.cat-btn .icon{width:14px;height:14px}
+.cat-btn.active{background:rgba(59,130,246,.18);color:#93C5FD;border-color:rgba(59,130,246,.45)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px;padding:14px 16px 110px}
+.card{background:var(--card);border:1px solid var(--line2);border-radius:var(--radius);padding:14px 12px 12px;
+  display:flex;flex-direction:column;gap:8px;transition:transform .15s,border-color .15s,box-shadow .15s;position:relative}
+.card:hover{transform:translateY(-3px);border-color:rgba(59,130,246,.4);box-shadow:var(--shadow);background:var(--card-hover)}
+.badge{position:absolute;top:10px;left:10px;z-index:2;font-size:9px;font-weight:800;padding:3px 8px;border-radius:999px;letter-spacing:.4px}
+.badge.HOT{background:#EF4444;color:#fff}
+.badge.VIP{background:linear-gradient(90deg,#FBBF24,#F59E0B);color:#1A1200}
+.badge.POPULAR{background:#3B82F6;color:#fff}
+.card-icon{width:56px;height:56px;border-radius:14px;margin:6px auto 2px;background:linear-gradient(145deg,#1E293B,#0F172A);
+  border:1px solid var(--line2);display:grid;place-items:center;color:#7DD3FC}
+.card-img{width:100%;aspect-ratio:1;border-radius:12px;object-fit:cover;background:#0B1220;border:1px solid var(--line2);margin-top:4px}
+.card h3{font-size:13px;font-weight:700;text-align:center;line-height:1.3;min-height:34px}
+.card .dur{font-size:11px;color:var(--muted);text-align:center;font-weight:500}
+.card .price{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--gold);text-align:center}
+.card .meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:0 2px;font-weight:500}
+.stock-ok{color:var(--green)}.stock-low{color:var(--red)}
+.overlay{position:fixed;inset:0;z-index:80;background:rgba(2,6,14,.78);backdrop-filter:blur(6px);
+  display:flex;align-items:flex-end;justify-content:center}
+.modal{width:100%;max-width:440px;background:var(--bg2);border-radius:22px 22px 0 0;border:1px solid var(--line);
+  border-bottom:0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));max-height:92vh;overflow-y:auto;
+  animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetUp{from{transform:translateY(48px);opacity:0}to{transform:none;opacity:1}}
+.modal-handle{width:36px;height:4px;border-radius:4px;background:var(--line2);margin:0 auto 14px}
+.modal h3{font-size:18px;font-weight:800;margin-bottom:4px}
+.modal .sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.field input{width:100%;padding:13px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line2);
+  color:var(--text);font-size:14px;outline:none}
+.field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.modal-actions{display:flex;gap:10px;margin-top:10px}
+.modal-actions .btn{flex:1;padding:12px}
+.modal-actions .btn-primary{flex:1.35}
+.result-box{margin-top:12px;padding:14px;border-radius:14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.28)}
+.result-box .oid{font-family:var(--mono);font-size:16px;color:var(--green);font-weight:700;margin-top:2px}
+.result-box .del{margin-top:10px;padding:12px;background:rgba(0,0,0,.3);border-radius:10px;word-break:break-all;font-size:13px}
+.toast{position:fixed;left:16px;right:16px;bottom:24px;z-index:100;padding:13px 16px;border-radius:14px;text-align:center;
+  font-weight:600;font-size:13px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);
+  transform:translateY(140%);transition:transform .28s}
+.toast.show{transform:none}.toast.err{border-color:rgba(248,113,113,.4);color:#FECACA;background:#1C1014}
+.pay-box{margin-top:12px;padding:16px;border-radius:14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.28);text-align:center}
+.pay-box img{max-width:220px;width:100%;border-radius:12px;margin:10px auto;background:#fff;padding:8px}
+.pay-box .amt{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--gold);margin:6px 0}
+.pay-box .shop{font-size:13px;color:var(--muted);margin-bottom:4px}
+
+.footer{text-align:center;padding:8px 16px 32px;color:var(--muted);font-size:11px;font-weight:500}
+.empty{grid-column:1/-1;text-align:center;padding:48px 16px;color:var(--muted)}
+@media(min-width:720px){
+  .overlay{align-items:center;padding:24px}
+  .modal{border-radius:20px;border:1px solid var(--line);max-height:85vh}
+  .modal-handle{display:none}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">SK</div>
+  <div class="brand">
+    <h1 id="siteName">Sina Key</h1>
+    <p id="siteTag">Key · DNS · Mode File</p>
+  </div>
+  <div class="top-actions">
+    <button class="btn btn-ghost" type="button" onclick="openTrack()">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      តាមដាន
+    </button>
+    <a class="btn btn-primary" id="tgLink" href="#" target="_blank" rel="noopener">
+      <svg class="icon icon-sm" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.5 3.5 2.6 10.9c-1.2.5-1.2 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14.1c.3-1.2-.4-1.8-1.7-1.7zM8.6 13.4l9.3-5.9c.4-.3.8-.1.5.2l-8 7.2-.3 3.2-1.5-4.7z"/></svg>
+      Telegram
+    </a>
+  </div>
+</header>
+
+<section class="hero">
+  <h2>ទិញ Key · DNS · Mode</h2>
+  <p id="heroNote">ជ្រើស product → បញ្ចូល Telegram → ទទួល file / key លឿន សុវត្ថិភាព</p>
+  <div class="chips">
+    <span class="chip"><svg class="icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Mode</span>
+    <span class="chip"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg> DNS</span>
+    <span class="chip"><svg class="icon" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6L3 21m7.4-7.4L21 3M8 16l-2 5 5-2"/></svg> Key</span>
+    <span class="chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secure</span>
+  </div>
+</section>
+
+<nav class="cats" id="cats"></nav>
+<main class="grid" id="grid"><div class="empty">កំពុងផ្ទុក...</div></main>
+<footer class="footer" id="footerNote"></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const ICONS = {
+  all: `<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+  mode: `<svg class="icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+  dns: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>`,
+  key: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6L3 21m7.4-7.4L21 3M8 16l-2 5 5-2"/><circle cx="16.5" cy="7.5" r="2.5"/></svg>`,
+  injector: `<svg class="icon" viewBox="0 0 24 24"><path d="M12 2v6m0 8v6M4.9 4.9l4.2 4.2m5.8 5.8 4.2 4.2M2 12h6m8 0h6M4.9 19.1l4.2-4.2m5.8-5.8 4.2-4.2"/></svg>`,
+  vip: `<svg class="icon" viewBox="0 0 24 24"><path d="M3 7l4 12h10l4-12-5 4-4-7-4 7-5-4z"/></svg>`,
+  box: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4a2 2 0 001-1.7z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>`,
+  empty: `<svg class="icon" viewBox="0 0 24 24"><path d="M20 7H4a1 1 0 00-1 1v11a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>`,
+};
+const $ = s => document.querySelector(s);
+let CATALOG = { products: [], categories: [], settings: {} };
+let FILTER = "all";
+
+function toast(msg, err){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = "toast show" + (err ? " err" : "");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+async function api(path, opts={}){
+  const r = await fetch("/api/" + path, {
+    headers: { "Content-Type": "application/json", ...(opts.headers||{}) },
+    ...opts,
+  });
+  return r.json();
+}
+function money(n){ return "$" + Number(n).toFixed(2); }
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+}
+function renderCats(){
+  const items = [{ slug:"all", name:"ទាំងអស់", icon:"all" }, ...CATALOG.categories];
+  $("#cats").innerHTML = items.map(c => `
+    <button type="button" class="cat-btn ${FILTER===c.slug?'active':''}" onclick="setFilter('${c.slug}')">
+      ${ICONS[c.slug]||ICONS.all} ${esc(c.name)}
+    </button>`).join("");
+}
+function setFilter(slug){ FILTER = slug; renderCats(); renderGrid(); }
+function renderGrid(){
+  const list = CATALOG.products.filter(p => FILTER==="all" || p.cat===FILTER);
+  const el = $("#grid");
+  if(!list.length){
+    el.innerHTML = `<div class="empty">${ICONS.empty}<div>មិនមាន product</div></div>`;
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const stockCls = p.stock > 5 ? "stock-ok" : "stock-low";
+    const badge = p.badge ? `<span class="badge ${esc(p.badge)}">${esc(p.badge)}</span>` : "";
+    const ic = ICONS[p.cat] || ICONS.box;
+    const img = p.image
+      ? `<img class="card-img" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`
+      : `<div class="card-icon">${ic.replace('class="icon"','class="icon icon-lg"')}</div>`;
+    return `
+    <article class="card">
+      ${badge}
+      ${img}
+      <h3>${esc(p.name)}</h3>
+      <div class="dur">${esc(p.duration||"")}</div>
+      <div class="price">${money(p.price)}</div>
+      <div class="meta"><span class="${stockCls}">Stock ${p.stock}</span><span>${esc(p.cat)}</span></div>
+      <button type="button" class="btn-buy" ${p.stock<=0?"disabled":""} onclick="openBuy(${p.id})">
+        ${p.stock>0 ? "ទិញឥឡូវ" : "អស់ stock"}
+      </button>
+    </article>`;
+  }).join("");
+}
+function openBuy(id){
+  const p = CATALOG.products.find(x => x.id===id);
+  if(!p) return;
+  const wrap = document.createElement("div");
+  wrap.className = "overlay"; wrap.id = "buyModal";
+  wrap.innerHTML = `
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>${esc(p.name)}</h3>
+      <div class="sub">${esc(p.desc||"")} · ${money(p.price)} · Stock ${p.stock}</div>
+      <div class="field"><label>Telegram / Contact *</label>
+        <input id="buyContact" placeholder="@username ឬ លេខទូរស័ព្ទ" autocomplete="off"></div>
+      <div class="field"><label>កំណត់សម្គាល់</label>
+        <input id="buyNote" placeholder="Device / ព័ត៌មានបន្ថែម"></div>
+      <div id="buyResult"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">បិទ</button>
+        <button type="button" class="btn btn-primary" id="buySubmit" onclick="submitBuy(${p.id})">បញ្ជាទិញ</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  wrap.addEventListener("click", e => { if(e.target===wrap) closeModal(); });
+  setTimeout(() => $("#buyContact")?.focus(), 80);
+}
+function closeModal(){ $("#buyModal")?.remove(); $("#trackModal")?.remove(); }
+async function submitBuy(id){
+  const contact = ($("#buyContact")?.value||"").trim();
+  const note = ($("#buyNote")?.value||"").trim();
+  if(!contact){ toast("សូមបញ្ចូល Telegram / Contact", true); return; }
+  const btn = $("#buySubmit");
+  if(btn){ btn.disabled = true; btn.textContent = "កំពុងដំណើរការ..."; }
+  const r = await api("order", { method:"POST", body: JSON.stringify({ product_id:id, telegram:contact, note }) });
+  if(!r.ok){ toast(r.error||"បរាជ័យ", true); if(btn){ btn.disabled=false; btn.textContent="បញ្ជាទិញ"; } return; }
+  const o = r.order;
+  const pay = r.payment || {};
+  const isPayway = !!(r.payway && (r.payway.qrImage || pay.PAYWAY_DYNAMIC)) || !!pay.KS_DYNAMIC;
+  const isKs = !!(r.khmer_system && (r.khmer_system.qr_image_url || pay.KHMER_SYSTEM));
+  let payHtml = `<div class="pay-box">
+    <div class="shop">${esc(pay.SHOP_NAME||"Sina Key")}${isPayway ? " · ABA PayWay" : (isKs ? " · Khmer System" : (pay.BAKONG_ID ? " · " + esc(pay.BAKONG_ID) : ""))}</div>
+    <div class="amt">${money(o.price)}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${isPayway ? "ស្កេន ABA KHQR ឬបើក ABA Mobile" : (isKs ? "ស្កេន KHQR (គ្រប់ធនាគារ Bakong)" : esc(pay.PAYMENT_NOTE||"ស្កេន QR បង់ប្រាក់"))}</div>
+    ${pay.PAYMENT_QR ? `<img src="${esc(pay.PAYMENT_QR)}" alt="KHQR">` : `<div style="padding:20px;color:var(--muted);font-size:13px">Admin មិនទាន់ដាក់ QR</div>`}
+    ${pay.PAYWAY_DEEPLINK ? `<a class="btn btn-ghost" style="width:100%;margin-top:8px" href="${esc(pay.PAYWAY_DEEPLINK)}">បើក ABA Mobile</a>` : ""}
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">Order: <b class="oid" style="font-size:13px">${esc(o.id)}</b></div>
+    <div id="payStatus" style="font-size:12px;margin-top:8px;color:var(--muted)"></div>
+    <button type="button" class="btn btn-primary" style="width:100%;margin-top:12px;padding:12px" id="btnPaid" onclick="confirmPaid('${esc(o.id)}')">
+      ✓ ខ្ញុំបានបង់ហើយ
+    </button>
+  </div>`;
+  $("#buyResult").innerHTML = payHtml;
+  if(btn) btn.style.display="none";
+  document.querySelectorAll("#buyModal .field").forEach(f => f.style.display="none");
+  toast("Order " + o.id + " — សូមបង់ប្រាក់");
+  if(isPayway) startPaywayPoll(o.id);
+  else if(isKs) startKsPoll(o.id);
+}
+
+let _payPoll = null;
+function startPaywayPoll(orderId){
+  if(_payPoll) clearInterval(_payPoll);
+  let n = 0;
+  _payPoll = setInterval(async () => {
+    n++;
+    if(n > 60){ clearInterval(_payPoll); return; }
+    try {
+      const r = await api("order/check-payment", { method:"POST", body: JSON.stringify({ order_id: orderId }) });
+      const st = $("#payStatus");
+      if(st) st.textContent = "ស្ថានភាព: " + (r.payment_status||"...");
+      if(r.payment_status === "APPROVED" || r.payment_status === "completed" || r.order?.status === "paid"){
+        clearInterval(_payPoll);
+        showDelivered(r.order, r.message);
+      }
+    } catch(e){}
+  }, 4000);
+}
+function showDelivered(o, message){
+  let body = "";
+  if(o.delivery_file){
+    body = `<div class="del"><b>File:</b> ${esc(o.delivery_file.name||"file")}<br>
+      <a class="btn btn-primary" style="margin-top:10px;display:inline-flex" href="/api/download/${esc(o.id)}">Download File</a></div>`;
+  } else if(o.delivery){
+    body = `<div class="del"><b>Key:</b><br>${esc(o.delivery)}</div>`;
+  } else {
+    body = `<div style="margin-top:8px;font-size:12px;color:var(--muted)">Admin នឹងផ្ញើ key ក្នុងពេលឆាប់ៗ</div>`;
+  }
+  $("#buyResult").innerHTML = `<div class="result-box">
+    <div style="font-size:11px;color:var(--muted);font-weight:700">ORDER ID</div>
+    <div class="oid">${esc(o.id)}</div>
+    <div style="margin-top:6px;font-size:12px;color:var(--muted)">${esc(message||"ជោគជ័យ")}</div>${body}</div>`;
+  toast(message || "ជោគជ័យ");
+  loadCatalog();
+}
+
+async function confirmPaid(orderId){
+  const btn = $("#btnPaid");
+  if(btn){ btn.disabled = true; btn.textContent = "កំពុងផ្ទៀងផ្ទាត់..."; }
+  const r = await api("order/confirm-paid", { method:"POST", body: JSON.stringify({ order_id: orderId }) });
+  if(!r.ok){ toast(r.error||"បរាជ័យ", true); if(btn){ btn.disabled=false; btn.textContent="✓ ខ្ញុំបានបង់ហើយ"; } return; }
+  if(_payPoll) clearInterval(_payPoll);
+  showDelivered(r.order, r.message);
+}
+function openTrack(){
+  const wrap = document.createElement("div");
+  wrap.className = "overlay"; wrap.id = "trackModal";
+  wrap.innerHTML = `
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>តាមដាន Order</h3>
+      <div class="sub">វាយ Order ID (ឧ. SK1001)</div>
+      <div class="field"><label>Order ID</label>
+        <input id="trackId" placeholder="SK1001" style="text-transform:uppercase;font-family:var(--mono)"></div>
+      <div id="trackResult"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">បិទ</button>
+        <button type="button" class="btn btn-primary" onclick="doTrack()">ស្វែងរក</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  wrap.addEventListener("click", e => { if(e.target===wrap) closeModal(); });
+  $("#trackId")?.addEventListener("keydown", e => { if(e.key==="Enter") doTrack(); });
+}
+async function doTrack(){
+  const id = ($("#trackId")?.value||"").trim();
+  if(!id){ toast("វាយ Order ID", true); return; }
+  const r = await api("track?id=" + encodeURIComponent(id));
+  const el = $("#trackResult");
+  if(!r.ok){ el.innerHTML = `<div class="empty">${esc(r.error||"មិនឃើញ")}</div>`; return; }
+  const o = r.order;
+  let file = "";
+  if(o.download_url){
+    file = `<div class="del"><b>File:</b> ${esc((o.delivery_file&&o.delivery_file.name)||"file")}<br>
+      <a class="btn btn-primary" style="margin-top:10px;display:inline-flex" href="${esc(o.download_url)}">Download File</a></div>`;
+  } else if(o.delivery){ file = `<div class="del"><b>Key:</b><br>${esc(o.delivery)}</div>`; }
+  el.innerHTML = `<div class="result-box"><div class="oid">${esc(o.id)}</div>
+    <div style="margin-top:10px;font-size:13px;display:grid;gap:4px">
+      <div><span style="color:var(--muted)">Product</span> · ${esc(o.product_name)}</div>
+      <div><span style="color:var(--muted)">តម្លៃ</span> · ${money(o.price)}</div>
+      <div><span style="color:var(--muted)">ស្ថានភាព</span> · ${esc(o.status)}</div>
+      <div><span style="color:var(--muted)">ថ្ងៃ</span> · ${esc(o.created_at)}</div>
+    </div>${file}</div>`;
+}
+async function loadCatalog(){
+  const r = await api("catalog");
+  if(!r.ok){ toast("ផ្ទុក catalog បរាជ័យ", true); return; }
+  CATALOG = r;
+  $("#siteName").textContent = r.settings.SITE_NAME || "Sina Key";
+  $("#siteTag").textContent = r.settings.SITE_TAGLINE || "";
+  if(r.settings.CONTACT_NOTE) $("#heroNote").textContent = r.settings.CONTACT_NOTE;
+  $("#footerNote").textContent = (r.settings.SITE_NAME||"Sina Key") + " · Digital delivery";
+  $("#tgLink").href = r.settings.TELEGRAM || "#";
+  renderCats(); renderGrid();
+}
+loadCatalog();
+</script>
+</body>
+</html>
