@@ -1,0 +1,157 @@
+{
+  "settings": {
+    "SITE_NAME": "Sina Key",
+    "SITE_TAGLINE": "Key · DNS · Mode File — Delivery លឿន",
+    "TELEGRAM": "https://t.me/",
+    "ADMIN_PASSWORD": "admin123",
+    "CURRENCY": "USD",
+    "CONTACT_NOTE": "បន្ទាប់ពីបង់ប្រាក់ Admin នឹងផ្ញើ file តាម Telegram / Order ID",
+    "SHOP_NAME": "Sina Key",
+    "BAKONG_ID": "",
+    "PAYMENT_QR": "",
+    "PAYMENT_NOTE": "ស្កេន KHQR បង់តាមតម្លៃ product · រួចចុច បានបង់ហើយ",
+    "AUTO_DELIVER": true,
+    "PAYWAY_MERCHANT_ID": "",
+    "PAYWAY_API_KEY": "",
+    "PAYWAY_SANDBOX": true,
+    "KHMER_SECRET_KEY": ""
+  },
+  "categories": [
+    {
+      "id": 1,
+      "name": "Mode File",
+      "slug": "mode",
+      "icon": "⚡",
+      "sort": 1
+    },
+    {
+      "id": 2,
+      "name": "DNS File",
+      "slug": "dns",
+      "icon": "🌐",
+      "sort": 2
+    },
+    {
+      "id": 3,
+      "name": "Key / License",
+      "slug": "key",
+      "icon": "🔑",
+      "sort": 3
+    },
+    {
+      "id": 4,
+      "name": "Injector",
+      "slug": "injector",
+      "icon": "💉",
+      "sort": 4
+    },
+    {
+      "id": 5,
+      "name": "VIP Pack",
+      "slug": "vip",
+      "icon": "👑",
+      "sort": 5
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "cat": "mode",
+      "name": "Flux Injector Mode",
+      "desc": "Mode file សម្រាប់ Flux — update ថ្មី",
+      "price": 1.5,
+      "stock": 25,
+      "badge": "HOT",
+      "image": "",
+      "duration": "30 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 2,
+      "cat": "mode",
+      "name": "Trollmodz VIP Mode",
+      "desc": "VIP mode pack ពេញលេញ",
+      "price": 3.0,
+      "stock": 12,
+      "badge": "VIP",
+      "image": "",
+      "duration": "30 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 3,
+      "cat": "dns",
+      "name": "DNS FF Private",
+      "desc": "DNS file Free Fire — private list",
+      "price": 0.75,
+      "stock": 40,
+      "badge": "HOT",
+      "image": "",
+      "duration": "7 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 4,
+      "cat": "dns",
+      "name": "DNS MLBB",
+      "desc": "DNS សម្រាប់ Mobile Legends",
+      "price": 1.0,
+      "stock": 30,
+      "badge": "",
+      "image": "",
+      "duration": "15 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 5,
+      "cat": "key",
+      "name": "Esign Key 1 Year",
+      "desc": "Esign certificate key 1 ឆ្នាំ",
+      "price": 5.0,
+      "stock": 8,
+      "badge": "POPULAR",
+      "image": "",
+      "duration": "365 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 6,
+      "cat": "injector",
+      "name": "Premium Injector",
+      "desc": "Injector tool + guide",
+      "price": 2.5,
+      "stock": 15,
+      "badge": "",
+      "image": "",
+      "duration": "Lifetime",
+      "active": true
+    },
+    {
+      "id": 7,
+      "cat": "vip",
+      "name": "All-in-One VIP Pack",
+      "desc": "Mode + DNS + Key bundle",
+      "price": 8.0,
+      "stock": 5,
+      "badge": "VIP",
+      "image": "",
+      "duration": "30 ថ្ងៃ",
+      "active": true
+    },
+    {
+      "id": 8,
+      "cat": "key",
+      "name": "DNS Key Weekly",
+      "desc": "Key សម្រាប់ DNS ប្រចាំសប្តាហ៍",
+      "price": 1.25,
+      "stock": 20,
+      "badge": "",
+      "image": "",
+      "duration": "7 ថ្ងៃ",
+      "active": true
+    }
+  ],
+  "orders": [],
+  "stock_files": {},
+  "next_order": 1001
+}
