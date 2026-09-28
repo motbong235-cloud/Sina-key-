@@ -5,6 +5,7 @@ import os
 import secrets
 import string
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
@@ -238,14 +239,20 @@ def create_order():
     s = d.get("settings") or {}
 
     # --- KHMER SYSTEM (ប្រព័ន្ធបង់ប្រាក់តែមួយគត់) ---
+    # Docs: https://khmer-system.com/api-docs
+    # Required: secret_key, amount (>0), verify_key (10 alnum), telegram_user_id
     ksc = _ks_conf(s)
     ks_secret = ksc["secret"]
     if ks_secret:
         try:
             vkey = khmer_system.make_verify_key()
-            # API requires telegram_user_id — use digits from contact or hash
+            # API requires telegram_user_id (string). Website guests → stable numeric id
             tg_raw = buyer.lstrip("@")
-            tg_id = "".join(c for c in tg_raw if c.isdigit()) or str(abs(hash(tg_raw)) % 10**9)
+            digits = "".join(c for c in tg_raw if c.isdigit())
+            tg_id = digits if digits else str(abs(hash(tg_raw)) % 10**9)
+            if not tg_id or tg_id == "0":
+                tg_id = str(abs(hash(order_id + buyer)) % 10**9)
+
             resp = khmer_system.generate(
                 secret_key=ks_secret,
                 amount=float(product["price"]),
@@ -253,37 +260,63 @@ def create_order():
                 telegram_user_id=tg_id,
                 bakong_account_id=ksc["bakong"] or None,
                 merchant_name=(ksc["merchant"] or s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
-                machine_id=ksc["machine"] or None,
-                profile_key=ksc["profile"] or None,
             )
-            if resp.get("success") and (resp.get("qr_image_url") or resp.get("qr_string")):
+            qr_url = (resp.get("qr_image_url") or "").strip()
+            qr_str = (resp.get("qr_string") or "").strip()
+            # Fallback: build QR image from qr_string if API omitted image URL
+            if not qr_url and qr_str:
+                qr_url = (
+                    "https://api.qrserver.com/v1/create-qr-code/"
+                    "?size=280x280&margin=8&data=" + urllib.parse.quote(qr_str)
+                )
+
+            if resp.get("success") and (qr_url or qr_str):
                 order["ks_verify_key"] = vkey
                 order["ks_telegram_user_id"] = tg_id
                 order["ks_transaction_id"] = resp.get("transaction_id")
-                pay["PAYMENT_QR"] = resp.get("qr_image_url") or ""
+                pay["PAYMENT_QR"] = qr_url
                 pay["KS_DYNAMIC"] = True
-                pay["KS_QR_STRING"] = resp.get("qr_string") or ""
+                pay["KS_QR_STRING"] = qr_str
                 pay["PAYMENT_NOTE"] = "ស្កេន KHQR (ABA / ធនាគារណាមួយ) · auto verify"
             else:
-                order["ks_error"] = resp.get("error") or resp.get("code") or str(resp)[:200]
+                # Surface full API error for admin debugging
+                parts = []
+                if resp.get("code"):
+                    parts.append(str(resp["code"]))
+                if resp.get("error"):
+                    parts.append(str(resp["error"]))
+                if not parts:
+                    parts.append(str(resp)[:240])
+                order["ks_error"] = " · ".join(parts)
+                order["ks_raw"] = {k: resp.get(k) for k in ("success", "error", "code", "message") if k in resp}
         except Exception as e:
             order["ks_error"] = str(e)
 
     if not order.get("ks_verify_key"):
-        # Khmer System មិនទាន់ setup ឬ generate QR បរាជ័យ → មិនបង្កើត order (មិន db_write)
-        err = order.get("ks_error") or ("Admin មិនទាន់បំពេញ Khmer System Key ក្នុង /admin → Settings" if not ks_secret else "បង្កើត QR បរាជ័យ")
-        return jsonify({"ok": False, "error": err, "ks_error": err}), 502
+        # Khmer System មិនទាន់ setup ឬ generate QR បរាជ័យ → មិនបង្កើត order
+        if not ks_secret:
+            err = "Admin មិនទាន់បំពេញ Khmer System Key ក្នុង /admin → Settings"
+        else:
+            err = order.get("ks_error") or "បង្កើត QR បរាជ័យ (ពិនិត្យ Secret Key / Bakong ក្នុង dashboard)"
+        return jsonify({
+            "ok": False,
+            "error": err,
+            "ks_error": err,
+            "hint": (
+                "1) Profile Key / Secret Key ត្រូវចម្លងពី khmer-system.com dashboard "
+                "2) Bakong account ត្រូវភ្ជាប់ក្នុង merchant "
+                "3) verify_key ត្រូវ 10 តួ alphanumeric"
+            ),
+        }), 502
 
     db_write(d)
-    ks_data = None
-    if order.get("ks_verify_key"):
-        ks_data = {
-            "verify_key": order.get("ks_verify_key"),
-            "transaction_id": order.get("ks_transaction_id"),
-            "qr_image_url": pay.get("PAYMENT_QR") or "",
-            "qr_string": pay.get("KS_QR_STRING") or "",
-        }
-        msg = "សូមស្កេន KHQR (Khmer System) · auto verify"
+    ks_data = {
+        "verify_key": order.get("ks_verify_key"),
+        "transaction_id": order.get("ks_transaction_id"),
+        "qr_image_url": pay.get("PAYMENT_QR") or "",
+        "qr_string": pay.get("KS_QR_STRING") or "",
+    }
+    msg = "សូមស្កេន KHQR (Khmer System) · auto verify"
     return jsonify({
         "ok": True,
         "order": order,
