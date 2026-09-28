@@ -160,16 +160,25 @@ def _pop_stock_item(d, product_id):
 
 
 def _ks_conf(s):
-    """Khmer System config — settings ក្នុង db.json មុន, បើគ្មាន fallback ទៅ ENV
-    (KHMER_SECRET_KEY / KHMER_PROFILE_KEY / KHMER_MACHINE_ID / KHMER_MERCHANT_NAME / BAKONG_ID)
-    ដូច្នេះទោះ db.json ត្រូវលុប (redeploy ដោយគ្មាន disk) key ក៏មិនបាត់។"""
+    """Khmer System config — settings ក្នុង db.json មុន, បើគ្មាន fallback ទៅ ENV.
+    Profile Key (PK_...) + merchant_id ត្រូវការ បើ account មាន merchant ច្រើន។"""
     g = lambda k: str(s.get(k) or os.environ.get(k) or "").strip()
+    secret = g("KHMER_SECRET_KEY")
+    profile = g("KHMER_PROFILE_KEY")
+    # Admin often saves the same value into both fields
+    raw = secret or profile
+    if raw.upper().startswith("PK_"):
+        secret_out, profile_out = "", raw
+    else:
+        secret_out, profile_out = raw, (profile if profile.upper().startswith("PK_") else "")
     return {
-        "secret": g("KHMER_SECRET_KEY") or g("KHMER_PROFILE_KEY"),
-        "profile": g("KHMER_PROFILE_KEY"),
+        "secret": secret_out,
+        "profile": profile_out,
         "machine": g("KHMER_MACHINE_ID"),
         "merchant": g("KHMER_MERCHANT_NAME"),
+        "merchant_id": g("KHMER_MERCHANT_ID"),
         "bakong": g("BAKONG_ID"),
+        "key": raw,
     }
 
 
@@ -181,7 +190,7 @@ def _payment_info(d):
         "SHOP_NAME": s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key",
         "PAYMENT_NOTE": s.get("PAYMENT_NOTE") or "ស្កេន KHQR បង់តាមតម្លៃ · រួចចុច បានបង់ហើយ",
         "AUTO_DELIVER": bool(s.get("AUTO_DELIVER", True)),
-        "KHMER_ENABLED": bool(_ks_conf(s)["secret"]),
+        "KHMER_ENABLED": bool(_ks_conf(s)["key"]),
     }
 
 
@@ -238,15 +247,13 @@ def create_order():
     pay = _payment_info(d)
     s = d.get("settings") or {}
 
-    # --- KHMER SYSTEM (ប្រព័ន្ធបង់ប្រាក់តែមួយគត់) ---
-    # Docs: https://khmer-system.com/api-docs
-    # Required: secret_key, amount (>0), verify_key (10 alnum), telegram_user_id
+    # --- KHMER SYSTEM ---
+    # Profile Key (PK_...) + merchant_id required when account has multiple merchants
     ksc = _ks_conf(s)
-    ks_secret = ksc["secret"]
-    if ks_secret:
+    ks_key = ksc["key"]
+    if ks_key:
         try:
             vkey = khmer_system.make_verify_key()
-            # API requires telegram_user_id (string). Website guests → stable numeric id
             tg_raw = buyer.lstrip("@")
             digits = "".join(c for c in tg_raw if c.isdigit())
             tg_id = digits if digits else str(abs(hash(tg_raw)) % 10**9)
@@ -254,16 +261,18 @@ def create_order():
                 tg_id = str(abs(hash(order_id + buyer)) % 10**9)
 
             resp = khmer_system.generate(
-                secret_key=ks_secret,
+                secret_key=ksc["secret"] or None,
+                profile_key=ksc["profile"] or None,
                 amount=float(product["price"]),
                 verify_key=vkey,
                 telegram_user_id=tg_id,
                 bakong_account_id=ksc["bakong"] or None,
                 merchant_name=(ksc["merchant"] or s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
+                merchant_id=ksc["merchant_id"] or None,
+                machine_id=ksc["machine"] or None,
             )
             qr_url = (resp.get("qr_image_url") or "").strip()
             qr_str = (resp.get("qr_string") or "").strip()
-            # Fallback: build QR image from qr_string if API omitted image URL
             if not qr_url and qr_str:
                 qr_url = (
                     "https://api.qrserver.com/v1/create-qr-code/"
@@ -279,7 +288,6 @@ def create_order():
                 pay["KS_QR_STRING"] = qr_str
                 pay["PAYMENT_NOTE"] = "ស្កេន KHQR (ABA / ធនាគារណាមួយ) · auto verify"
             else:
-                # Surface full API error for admin debugging
                 parts = []
                 if resp.get("code"):
                     parts.append(str(resp["code"]))
@@ -288,26 +296,25 @@ def create_order():
                 if not parts:
                     parts.append(str(resp)[:240])
                 order["ks_error"] = " · ".join(parts)
-                order["ks_raw"] = {k: resp.get(k) for k in ("success", "error", "code", "message") if k in resp}
         except Exception as e:
             order["ks_error"] = str(e)
 
     if not order.get("ks_verify_key"):
-        # Khmer System មិនទាន់ setup ឬ generate QR បរាជ័យ → មិនបង្កើត order
-        if not ks_secret:
+        if not ks_key:
             err = "Admin មិនទាន់បំពេញ Khmer System Key ក្នុង /admin → Settings"
         else:
-            err = order.get("ks_error") or "បង្កើត QR បរាជ័យ (ពិនិត្យ Secret Key / Bakong ក្នុង dashboard)"
-        return jsonify({
-            "ok": False,
-            "error": err,
-            "ks_error": err,
-            "hint": (
-                "1) Profile Key / Secret Key ត្រូវចម្លងពី khmer-system.com dashboard "
-                "2) Bakong account ត្រូវភ្ជាប់ក្នុង merchant "
-                "3) verify_key ត្រូវ 10 តួ alphanumeric"
-            ),
-        }), 502
+            err = order.get("ks_error") or "បង្កើត QR បរាជ័យ"
+        hint = (
+            "1) បញ្ចូល Profile Key (PK_...) ឬ Secret Key (sk_live_...) "
+            "2) បើ account មាន merchant ច្រើន → បំពេញ Merchant ID "
+            "3) Bakong ត្រូវភ្ជាប់ក្នុង merchant លើ dashboard"
+        )
+        if "MERCHANT" in (err or "").upper() or "PROFILE" in (err or "").upper():
+            hint = (
+                "Account មាន merchant ច្រើន — ត្រូវបំពេញ Merchant ID ក្នុង /admin → Settings "
+                "(រក Merchant ID ក្នុង khmer-system.com dashboard → Merchants)"
+            )
+        return jsonify({"ok": False, "error": err, "ks_error": err, "hint": hint}), 502
 
     db_write(d)
     ks_data = {
@@ -342,21 +349,24 @@ def check_payment():
         return jsonify({"ok": True, "order": order, "payment_status": "completed", "message": "Paid"})
 
     s = d.get("settings") or {}
+    ksc = _ks_conf(s)
 
-    # Khmer System
-    if order.get("ks_verify_key") and _ks_conf(s)["secret"]:
+    if order.get("ks_verify_key") and ksc["key"]:
         resp = khmer_system.check(
-            secret_key=_ks_conf(s)["secret"],
+            secret_key=ksc["secret"] or None,
+            profile_key=ksc["profile"] or None,
+            merchant_id=ksc["merchant_id"] or None,
             verify_key=order["ks_verify_key"],
             telegram_user_id=order.get("ks_telegram_user_id") or "0",
         )
         st = (resp.get("status") or "").lower()
         if st == "completed":
             _fulfill_order(d, order)
-            # confirm credit (best-effort)
             try:
                 khmer_system.confirm(
-                    secret_key=_ks_conf(s)["secret"],
+                    secret_key=ksc["secret"] or None,
+                    profile_key=ksc["profile"] or None,
+                    merchant_id=ksc["merchant_id"] or None,
                     verify_key=order["ks_verify_key"],
                     telegram_user_id=order.get("ks_telegram_user_id") or "0",
                 )
@@ -388,18 +398,30 @@ def check_ks():
         return jsonify({"ok": True, "order": order, "payment_status": "completed", "message": "Paid"})
 
     s = d.get("settings") or {}
-    secret = _ks_conf(s)["secret"]
+    ksc = _ks_conf(s)
     vkey = order.get("ks_verify_key")
     tg_id = order.get("ks_telegram_user_id") or order.get("ks_telegram_id")
-    if not secret or not vkey or not tg_id:
+    if not ksc["key"] or not vkey or not tg_id:
         return jsonify({"ok": False, "error": "Khmer System not configured for this order"}), 400
 
-    resp = khmer_system.check(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+    resp = khmer_system.check(
+        secret_key=ksc["secret"] or None,
+        profile_key=ksc["profile"] or None,
+        merchant_id=ksc["merchant_id"] or None,
+        verify_key=vkey,
+        telegram_user_id=str(tg_id),
+    )
     status = (resp.get("status") or "").lower()
     if status == "completed":
         _fulfill_order(d, order)
         try:
-            khmer_system.confirm(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+            khmer_system.confirm(
+                secret_key=ksc["secret"] or None,
+                profile_key=ksc["profile"] or None,
+                merchant_id=ksc["merchant_id"] or None,
+                verify_key=vkey,
+                telegram_user_id=str(tg_id),
+            )
         except Exception:
             pass
         db_write(d)
@@ -437,12 +459,18 @@ def confirm_paid():
     auto = bool(s.get("AUTO_DELIVER", True))
 
     # ផ្ទៀងផ្ទាត់ជាមួយ Khmer System មុន — មិនទាន់បង់ = មិន deliver
-    secret = _ks_conf(s)["secret"]
+    ksc = _ks_conf(s)
     vkey = order.get("ks_verify_key")
     tg_id = order.get("ks_telegram_user_id") or order.get("ks_telegram_id")
-    if not secret or not vkey or not tg_id:
+    if not ksc["key"] or not vkey or not tg_id:
         return jsonify({"ok": False, "error": "Order នេះមិនមាន Khmer System payment"}), 400
-    resp = khmer_system.check(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+    resp = khmer_system.check(
+        secret_key=ksc["secret"] or None,
+        profile_key=ksc["profile"] or None,
+        merchant_id=ksc["merchant_id"] or None,
+        verify_key=vkey,
+        telegram_user_id=str(tg_id),
+    )
     st = (resp.get("status") or "").lower()
     if st != "completed":
         return jsonify({
@@ -451,7 +479,13 @@ def confirm_paid():
             "payment_status": st or "pending",
         }), 402
     try:
-        khmer_system.confirm(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+        khmer_system.confirm(
+            secret_key=ksc["secret"] or None,
+            profile_key=ksc["profile"] or None,
+            merchant_id=ksc["merchant_id"] or None,
+            verify_key=vkey,
+            telegram_user_id=str(tg_id),
+        )
     except Exception:
         pass
 
@@ -532,7 +566,7 @@ def admin_data():
         "stock_files": {k: len(v) if isinstance(v, list) else 0 for k, v in (d.get("stock_files") or {}).items()},
         "keygen_history": (d.get("keygen_history") or [])[:30],
         "storage_persistent": bool(os.environ.get("DATA_DIR")),
-        "ks_env": bool(_ks_conf({})["secret"]),
+        "ks_env": bool(_ks_conf({})["key"]),
     })
 
 
@@ -819,7 +853,8 @@ def admin_settings():
     for k in (
         "SITE_NAME", "SITE_TAGLINE", "TELEGRAM", "CONTACT_NOTE", "ADMIN_PASSWORD",
         "BAKONG_ID", "AUTO_DELIVER",
-        "KHMER_SECRET_KEY", "KHMER_PROFILE_KEY", "KHMER_MACHINE_ID", "KHMER_MERCHANT_NAME",
+        "KHMER_SECRET_KEY", "KHMER_PROFILE_KEY", "KHMER_MACHINE_ID",
+        "KHMER_MERCHANT_NAME", "KHMER_MERCHANT_ID",
     ):
         if k in body and body[k] is not None:
             if k == "AUTO_DELIVER":
