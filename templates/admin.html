@@ -36,6 +36,23 @@ th{color:var(--muted);font-weight:700}
 .tabs{display:flex;gap:6px;margin:14px 0;flex-wrap:wrap}
 .tab{padding:9px 14px;border-radius:999px;background:#1a2338;border:1px solid var(--line);cursor:pointer;font-weight:700;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .tab.on{background:rgba(59,130,246,.22);border-color:var(--blue);color:#93C5FD}
+.tab.keygen.on{background:rgba(139,92,246,.25);border-color:#8B5CF6;color:#C4B5FD}
+.keygen-card{background:linear-gradient(180deg,#151b2d,#0f1422);border:1px solid rgba(139,92,246,.25);border-radius:16px;padding:18px}
+.keygen-card h3{font-size:18px;font-weight:800;margin-bottom:6px}
+.keygen-field{margin-bottom:14px}
+.keygen-field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.keygen-field input,.keygen-field select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1020;color:var(--text);font-size:14px}
+.dur-row{display:flex;gap:8px;flex-wrap:wrap}
+.dur-btn{flex:1;min-width:70px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0b1020;color:var(--muted);font-weight:700;cursor:pointer}
+.dur-btn.on{border-color:#8B5CF6;color:#C4B5FD;background:rgba(139,92,246,.15)}
+.keygen-total{font-size:14px;margin:8px 0 4px}
+.keygen-total b{color:#C4B5FD}
+.keygen-bal{font-size:13px;color:var(--muted);margin-bottom:14px}
+.keygen-actions{display:flex;gap:10px}
+.keygen-actions .btn{flex:1;padding:12px;border-radius:12px;font-weight:800}
+.btn-purple{background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;border:none}
+.btn-outline-p{background:transparent;border:1px solid #8B5CF6;color:#C4B5FD}
+
 .hidden{display:none}
 .badge{font-size:10px;padding:2px 8px;border-radius:999px;background:#1e293b}
 .ok{color:var(--green)}.wait{color:var(--gold)}
@@ -78,6 +95,7 @@ th{color:var(--muted);font-weight:700}
         <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4a2 2 0 001-1.7z"/></svg>
         Products
       </button>
+      <button class="tab keygen" data-t="keys" onclick="tab('keys')">Keys</button>
       <button class="tab" data-t="stock" onclick="tab('stock')">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
         Upload
@@ -134,6 +152,42 @@ th{color:var(--muted);font-weight:700}
       </table>
     </div>
 
+    <div id="t-keys" class="card hidden">
+      <div class="keygen-card">
+        <h3>Key generator</h3>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Generate new keys</div>
+        <div class="keygen-field">
+          <label>Keys count *</label>
+          <input type="number" id="kgCount" min="1" max="500" value="1" oninput="updateKgTotal()">
+        </div>
+        <div class="keygen-field">
+          <label>Game / Product</label>
+          <select id="kgProduct"></select>
+        </div>
+        <div class="keygen-field">
+          <label>Duration</label>
+          <div class="dur-row">
+            <button type="button" class="dur-btn on" data-d="1 Day" onclick="setDur(this)">1 Day</button>
+            <button type="button" class="dur-btn" data-d="7 Day" onclick="setDur(this)">7 Day</button>
+            <button type="button" class="dur-btn" data-d="30 Day" onclick="setDur(this)">30 Day</button>
+          </div>
+        </div>
+        <div class="keygen-total">Total: <b id="kgTotal">$0.00</b> <span id="kgPer" style="color:var(--muted);font-size:12px">($0.00 per key)</span></div>
+        <div class="keygen-bal">Stock បច្ចុប្បន្ន: <b id="kgBal" style="color:var(--text)">0</b> keys</div>
+        <div class="keygen-actions">
+          <button type="button" class="btn btn-outline-p" onclick="tab('settings')">Setup</button>
+          <button type="button" class="btn btn-purple" onclick="generateKeys()">Generate</button>
+        </div>
+      </div>
+      <h4 style="margin:18px 0 8px;font-weight:700">Generated recently</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Product</th><th>Count</th><th>Duration</th><th>Sample</th></tr></thead>
+          <tbody id="kgHistory"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="t-stock" class="card hidden">
       <h3 style="margin-bottom:12px;font-weight:700">Upload Files / Keys</h3>
       <label>Product ID</label>
@@ -169,13 +223,20 @@ th{color:var(--muted);font-weight:700}
       <label>Telegram link</label><input id="sTg" placeholder="https://t.me/...">
       <label>Contact note</label><input id="sNote">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
-      <h3 style="margin-bottom:12px;font-weight:700">🇰🇭 KHMER SYSTEM (ណែនាំ)</h3>
+      <h3 style="margin-bottom:12px;font-weight:700">🇰🇭 KHMER SYSTEM (Auto Pay)</h3>
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
         ចុះឈ្មោះ: <a href="https://khmer-system.com" target="_blank" style="color:#93C5FD">khmer-system.com</a>
-        · API: pay.khmer-system.com · Docs: /api-docs
+        · API Docs: <a href="https://khmer-system.com/api-docs" target="_blank" style="color:#93C5FD">api-docs</a>
+        · បំពេញ Profile Key + Machine ID ពី dashboard
       </p>
-      <label>Secret Key (sk_live_...)</label><input id="sKsKey" type="password" placeholder="sk_live_xxxxxxxx">
-      <label>Bakong Account ID (optional)</label><input id="sBakong" placeholder="name@aclb">
+      <label>Profile Key / Secret Key *</label>
+      <input id="sKsKey" type="password" placeholder="sk_live_xxxxxxxx ឬ Profile Key">
+      <label>Machine ID</label>
+      <input id="sKsMachine" placeholder="Machine / Device ID ពី Khmer System">
+      <label>Bakong Account ID (optional)</label>
+      <input id="sBakong" placeholder="name@aclb">
+      <label>Merchant / Shop name on QR</label>
+      <input id="sKsMerchant" placeholder="Sina Key">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <h3 style="margin-bottom:12px;font-weight:700">💳 ABA PayWay (ផ្ទាល់)</h3>
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px">sandbox.payway.com.kh · developer.payway.com.kh</p>
@@ -222,16 +283,72 @@ async function login(){
 async function logout(){ await api("admin/logout", {method:"POST"}); location.reload(); }
 function tab(name){
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.t===name));
-  ["orders","products","stock","settings"].forEach(n => {
+  ["orders","products","keys","stock","settings"].forEach(n => {
     const el = $("#t-"+n);
     if(el) el.classList.toggle("hidden", n!==name);
   });
 }
+
+let kgDuration = "1 Day";
+function setDur(btn){
+  document.querySelectorAll(".dur-btn").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on");
+  kgDuration = btn.dataset.d;
+  updateKgTotal();
+}
+function fillKgProducts(){
+  const sel = $("#kgProduct");
+  if(!sel) return;
+  const prods = DATA.products || [];
+  sel.innerHTML = prods.map(p =>
+    `<option value="${p.id}" data-price="${p.price}" data-stock="${p.stock}">${p.name} ($${Number(p.price).toFixed(2)})</option>`
+  ).join("") || `<option value="">— no products —</option>`;
+  sel.onchange = updateKgTotal;
+  updateKgTotal();
+}
+function updateKgTotal(){
+  const sel = $("#kgProduct");
+  const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+  const price = Number((opt && opt.dataset.price) || 0);
+  const stock = Number((opt && opt.dataset.stock) || 0);
+  const count = Math.max(1, Number(($("#kgCount") && $("#kgCount").value) || 1));
+  if($("#kgTotal")) $("#kgTotal").textContent = "$" + (price * count).toFixed(2);
+  if($("#kgPer")) $("#kgPer").textContent = "($" + price.toFixed(2) + " per key)";
+  if($("#kgBal")) $("#kgBal").textContent = String(stock);
+}
+async function generateKeys(){
+  const pid = Number(($("#kgProduct") && $("#kgProduct").value) || 0);
+  const count = Math.max(1, Math.min(500, Number(($("#kgCount") && $("#kgCount").value) || 1)));
+  if(!pid){ alert("ជ្រើស product"); return; }
+  const r = await api("admin/generate-keys", {
+    method: "POST",
+    body: JSON.stringify({ product_id: pid, count: count, duration: kgDuration })
+  });
+  if(!r.ok){ alert(r.error || "Fail"); return; }
+  const sample = (r.keys || []).slice(0, 5).join("\n");
+  alert("Generated " + r.count + " keys\n\n" + sample + (r.count > 5 ? "\n..." : ""));
+  load();
+}
+function renderKgHistory(){
+  const h = DATA.keygen_history || [];
+  const el = $("#kgHistory");
+  if(!el) return;
+  el.innerHTML = h.length ? h.map(x =>
+    `<tr>
+      <td class="mono" style="font-size:11px">${String(x.at||"").replace("T"," ").slice(0,19)}</td>
+      <td>${x.product_name || x.product_id}</td>
+      <td>${x.count}</td>
+      <td>${x.duration || "—"}</td>
+      <td class="mono" style="font-size:10px">${(x.keys||[]).slice(0,2).join(", ")}${(x.keys||[]).length>2?"…":""}</td>
+    </tr>`
+  ).join("") : `<tr><td colspan="5" style="color:var(--muted)">មិនទាន់ generate</td></tr>`;
+}
+
 async function load(){
   const r = await api("admin/data");
   if(!r.ok){ $("#loginBox").classList.remove("hidden"); $("#panel").classList.add("hidden"); return; }
   DATA = r;
-  renderOrders(); renderProducts();
+  renderOrders(); renderProducts(); fillKgProducts(); renderKgHistory();
   $("#sName").value = r.settings.SITE_NAME||"";
   $("#sTag").value = r.settings.SITE_TAGLINE||"";
   $("#sTg").value = r.settings.TELEGRAM||"";
@@ -240,13 +357,14 @@ async function load(){
   if($("#sBakong")) $("#sBakong").value = r.settings.BAKONG_ID||"";
   if($("#sPayNote")) $("#sPayNote").value = r.settings.PAYMENT_NOTE||"";
   if($("#sAuto")) $("#sAuto").value = r.settings.AUTO_DELIVER === false ? "0" : "1";
-  if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_SECRET_KEY||"";
+  if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_SECRET_KEY||r.settings.KHMER_PROFILE_KEY||"";
+  if($("#sKsMachine")) $("#sKsMachine").value = r.settings.KHMER_MACHINE_ID||"";
+  if($("#sKsMerchant")) $("#sKsMerchant").value = r.settings.KHMER_MERCHANT_NAME||r.settings.SHOP_NAME||"";
   if($("#sPwMid")) $("#sPwMid").value = r.settings.PAYWAY_MERCHANT_ID||"";
   if($("#sPwKey")) $("#sPwKey").value = r.settings.PAYWAY_API_KEY||"";
   if($("#sPwSandbox")) $("#sPwSandbox").value = r.settings.PAYWAY_SANDBOX === false ? "0" : "1";
   if($("#sCurrency")) $("#sCurrency").value = r.settings.CURRENCY||"USD";
-  if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_SECRET_KEY||"";
-  if(r.settings.PAYMENT_QR && $("#qrPreview")){
+    if(r.settings.PAYMENT_QR && $("#qrPreview")){
     $("#qrPreview").innerHTML = '<img src="'+r.settings.PAYMENT_QR+'" style="max-width:160px;border-radius:10px;background:#fff;padding:6px">';
   }
   if(!$("#stockPid").value) {
@@ -433,11 +551,13 @@ async function saveSettings(){
     PAYMENT_NOTE: $("#sPayNote")?.value || "",
     AUTO_DELIVER: ($("#sAuto")?.value || "1") === "1",
     KHMER_SECRET_KEY: $("#sKsKey")?.value || "",
+    KHMER_PROFILE_KEY: $("#sKsKey")?.value || "",
+    KHMER_MACHINE_ID: $("#sKsMachine")?.value || "",
+    KHMER_MERCHANT_NAME: $("#sKsMerchant")?.value || "",
     PAYWAY_MERCHANT_ID: $("#sPwMid")?.value || "",
     PAYWAY_API_KEY: $("#sPwKey")?.value || "",
     PAYWAY_SANDBOX: ($("#sPwSandbox")?.value || "1") === "1",
     CURRENCY: $("#sCurrency")?.value || "USD",
-    KHMER_SECRET_KEY: $("#sKsKey")?.value || "",
   };
   const pw = $("#sPw").value;
   if(pw) body.ADMIN_PASSWORD = pw;
