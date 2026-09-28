@@ -3,6 +3,7 @@
 import json
 import os
 import secrets
+import string
 import time
 from datetime import datetime, timezone
 from functools import wraps
@@ -169,7 +170,7 @@ def _payment_info(d):
         "AUTO_DELIVER": bool(s.get("AUTO_DELIVER", True)),
         "PAYWAY_ENABLED": bool(s.get("PAYWAY_MERCHANT_ID") and s.get("PAYWAY_API_KEY")),
         "PAYWAY_SANDBOX": bool(s.get("PAYWAY_SANDBOX", True)),
-        "KHMER_ENABLED": bool(s.get("KHMER_SECRET_KEY")),
+        "KHMER_ENABLED": bool(s.get("KHMER_SECRET_KEY", "KHMER_MERCHANT_NAME", "KHMER_MACHINE_ID", "KHMER_PROFILE_KEY")),
     }
 
 
@@ -228,7 +229,7 @@ def create_order():
     s = d.get("settings") or {}
 
     # --- KHMER SYSTEM (preferred when configured) ---
-    ks_secret = (s.get("KHMER_SECRET_KEY") or "").strip()
+    ks_secret = (s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip()
     if ks_secret:
         try:
             vkey = khmer_system.make_verify_key()
@@ -241,7 +242,9 @@ def create_order():
                 verify_key=vkey,
                 telegram_user_id=tg_id,
                 bakong_account_id=(s.get("BAKONG_ID") or None) or None,
-                merchant_name=(s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
+                merchant_name=(s.get("KHMER_MERCHANT_NAME") or s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
+                machine_id=(s.get("KHMER_MACHINE_ID") or None) or None,
+                profile_key=(s.get("KHMER_PROFILE_KEY") or None) or None,
             )
             if resp.get("success") and (resp.get("qr_image_url") or resp.get("qr_string")):
                 order["ks_verify_key"] = vkey
@@ -297,47 +300,21 @@ def create_order():
         except Exception as e:
             order["payway_error"] = str(e)
 
-    # --- KHMER SYSTEM (pay.khmer-system.com) ---
-    ks_secret = (s.get("KHMER_SECRET_KEY") or "").strip()
-    ks_data = None
-    if ks_secret and not payway_qr:
-        try:
-            vkey = khmer_system.make_verify_key()
-            # telegram id: digits from buyer, or hash fallback for web users
-            tg_id = "".join(c for c in buyer if c.isdigit()) or str(abs(hash(buyer)) % 10**9)
-            gen = khmer_system.generate(
-                secret_key=ks_secret,
-                amount=float(product["price"]),
-                verify_key=vkey,
-                telegram_user_id=tg_id,
-                bakong_account_id=(s.get("BAKONG_ID") or None) or None,
-                merchant_name=(s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
-            )
-            if gen.get("success") and (gen.get("qr_image_url") or gen.get("qr_string")):
-                order["ks_verify_key"] = vkey
-                order["ks_telegram_id"] = tg_id
-                order["ks_transaction_id"] = gen.get("transaction_id")
-                pay["PAYMENT_QR"] = gen.get("qr_image_url") or ""
-                pay["KHMER_SYSTEM"] = True
-                pay["KS_VERIFY_KEY"] = vkey
-                ks_data = {
-                    "qr_image_url": gen.get("qr_image_url"),
-                    "qr_string": gen.get("qr_string"),
-                    "transaction_id": gen.get("transaction_id"),
-                    "verify_key": vkey,
-                    "expired_at": gen.get("expired_at"),
-                }
-            else:
-                order["ks_error"] = gen.get("error") or gen.get("code") or str(gen)[:200]
-        except Exception as e:
-            order["ks_error"] = str(e)
 
     db_write(d)
-    msg = "សូមស្កេន KHQR បង់ប្រាក់"
-    if payway_qr:
+    ks_data = None
+    if order.get("ks_verify_key"):
+        ks_data = {
+            "verify_key": order.get("ks_verify_key"),
+            "transaction_id": order.get("ks_transaction_id"),
+            "qr_image_url": pay.get("PAYMENT_QR") or "",
+            "qr_string": pay.get("KS_QR_STRING") or "",
+        }
+        msg = "សូមស្កេន KHQR (Khmer System) · auto verify"
+    elif payway_qr:
         msg = "សូមស្កេន ABA KHQR បង់ប្រាក់"
-    elif ks_data:
-        msg = "សូមស្កេន KHQR (Khmer System) បង់ប្រាក់"
+    else:
+        msg = "សូមស្កេន KHQR បង់ប្រាក់"
     return jsonify({
         "ok": True,
         "order": order,
@@ -365,9 +342,9 @@ def check_payment():
     s = d.get("settings") or {}
 
     # Khmer System
-    if order.get("ks_verify_key") and (s.get("KHMER_SECRET_KEY") or "").strip():
+    if order.get("ks_verify_key") and (s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip():
         resp = khmer_system.check(
-            secret_key=s["KHMER_SECRET_KEY"].strip(),
+            secret_key=(s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip(),
             verify_key=order["ks_verify_key"],
             telegram_user_id=order.get("ks_telegram_user_id") or "0",
         )
@@ -377,7 +354,7 @@ def check_payment():
             # confirm credit (best-effort)
             try:
                 khmer_system.confirm(
-                    secret_key=s["KHMER_SECRET_KEY"].strip(),
+                    secret_key=(s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip(),
                     verify_key=order["ks_verify_key"],
                     telegram_user_id=order.get("ks_telegram_user_id") or "0",
                 )
@@ -468,16 +445,16 @@ def check_ks():
     s = d.get("settings") or {}
     secret = (s.get("KHMER_SECRET_KEY") or "").strip()
     vkey = order.get("ks_verify_key")
-    tg_id = order.get("ks_telegram_id")
+    tg_id = order.get("ks_telegram_user_id") or order.get("ks_telegram_id")
     if not secret or not vkey or not tg_id:
         return jsonify({"ok": False, "error": "Khmer System not configured for this order"}), 400
 
-    resp = khmer_system.check(secret, vkey, tg_id)
+    resp = khmer_system.check(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
     status = (resp.get("status") or "").lower()
     if status == "completed":
         _fulfill_order(d, order)
         try:
-            khmer_system.confirm(secret, vkey, tg_id)
+            khmer_system.confirm(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
         except Exception:
             pass
         db_write(d)
@@ -652,7 +629,63 @@ def admin_data():
         "products": d.get("products", []),
         "orders": d.get("orders", [])[:100],
         "stock_files": {k: len(v) if isinstance(v, list) else 0 for k, v in (d.get("stock_files") or {}).items()},
+        "keygen_history": (d.get("keygen_history") or [])[:30],
     })
+
+
+
+@app.route("/api/admin/generate-keys", methods=["POST"])
+@admin_required
+def admin_generate_keys():
+    """Generate random license keys into product stock (Key generator)."""
+    body = request.get_json(force=True, silent=True) or {}
+    pid = body.get("product_id")
+    try:
+        pid = int(pid)
+    except Exception:
+        return jsonify({"ok": False, "error": "product_id invalid"}), 400
+    try:
+        count = int(body.get("count") or 1)
+    except Exception:
+        count = 1
+    count = max(1, min(500, count))
+    duration = str(body.get("duration") or "").strip() or "1 Day"
+
+    d = db_read()
+    product = next((x for x in d.get("products", []) if x.get("id") == pid), None)
+    if not product:
+        return jsonify({"ok": False, "error": "Product not found"}), 404
+
+    alphabet = string.ascii_uppercase + string.digits
+    def one_key():
+        parts = ["".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(4)]
+        return "-".join(parts)
+
+    keys = [one_key() for _ in range(count)]
+    stock = d.setdefault("stock_files", {})
+    pid_s = str(pid)
+    cur = stock.get(pid_s) or []
+    if not isinstance(cur, list):
+        cur = []
+    for k in keys:
+        value = f"{k} | {duration}" if duration else k
+        cur.append({"type": "text", "value": value})
+    stock[pid_s] = cur
+    d["stock_files"] = stock
+    product["stock"] = len(cur)
+
+    hist = d.setdefault("keygen_history", [])
+    hist.insert(0, {
+        "at": utc_now(),
+        "product_id": pid,
+        "product_name": product.get("name"),
+        "count": count,
+        "duration": duration,
+        "keys": keys[:20],
+    })
+    d["keygen_history"] = hist[:50]
+    db_write(d)
+    return jsonify({"ok": True, "count": count, "keys": keys, "stock": product["stock"]})
 
 
 @app.route("/api/admin/product", methods=["POST", "PUT", "DELETE"])
@@ -883,7 +916,7 @@ def admin_settings():
     for k in (
         "SITE_NAME", "SITE_TAGLINE", "TELEGRAM", "CONTACT_NOTE", "ADMIN_PASSWORD",
         "PAYMENT_QR", "BAKONG_ID", "SHOP_NAME", "PAYMENT_NOTE", "AUTO_DELIVER",
-        "PAYWAY_MERCHANT_ID", "PAYWAY_API_KEY", "PAYWAY_SANDBOX", "CURRENCY", "KHMER_SECRET_KEY", "KHMER_SECRET_KEY",
+        "PAYWAY_MERCHANT_ID", "PAYWAY_API_KEY", "PAYWAY_SANDBOX", "CURRENCY", "KHMER_SECRET_KEY", "BAKONG_ID", "SHOP_NAME",
     ):
         if k in body and body[k] is not None:
             if k in ("AUTO_DELIVER", "PAYWAY_SANDBOX"):

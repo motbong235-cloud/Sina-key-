@@ -1,66 +1,25 @@
-# Sina Key — Website (HTML + Flask)
+# Sina Key — Mode / DNS / Key Shop
 
-Website លក់ **Key · DNS · Mode File**  
-UI = **HTML** (`templates/`) · Server = Python (សម្រាប់ upload / order)
+Flask shop with **KHMER SYSTEM auto payment** (KHQR).
 
-> Render **Web Service** (មិនមែន Static Site) — ព្រោះត្រូវ upload file + order API
+## Payment flow
+1. Customer orders → server calls `POST pay.khmer-system.com/api/v1/payment/generate`
+2. Dynamic KHQR shown (ABA / any Bakong bank)
+3. Frontend polls `/api/order/check-payment` every ~4s
+4. On `completed` → auto deliver key/file + `confirm` credit
 
----
+## Setup Khmer System
+1. Register: https://khmer-system.com
+2. Get `sk_live_...` secret key
+3. `/admin` → Settings → **KHMER SYSTEM Secret Key** → Save
+4. Optional: Bakong Account ID, Shop name
 
-## Deploy លើ Render (Web Service)
-
-1. Upload folder នេះទៅ **GitHub**
-2. [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service**
-3. Connect repo
-4. កំណត់:
-
-| Field | Value |
-|--------|--------|
-| **Runtime** | Python |
-| **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60` |
-| **Plan** | Starter (ត្រូវ Disk) |
-
-5. **Environment**
-   - `ADMIN_PASSWORD` = ពាក្យសម្ងាត់ admin របស់អ្នក
-   - `SECRET_KEY` = random (ឬ Generate)
-   - `DATA_DIR` = `/var/data`
-
-6. **Disk** (សំខាន់!)
-   - Name: `sina-key-data`
-   - Mount path: `/var/data`
-   - Size: 1 GB
-
-7. Deploy → បើក URL របស់ Render
-
-- Shop: `https://your-service.onrender.com/`
-- Admin: `https://your-service.onrender.com/admin`
-
----
-
-## Files (HTML នៅទីនេះ)
-
-```
-sina-key/
-├── templates/
-│   ├── index.html    ← ទំព័រ Shop (HTML)
-│   └── admin.html    ← Admin panel (HTML)
-├── app.py            ← Web server
-├── requirements.txt
-├── Procfile
-├── render.yaml
-└── data/db.json
-```
-
----
-
-## Run local
-
+## Run
 ```bash
 pip install -r requirements.txt
 python app.py
+# http://127.0.0.1:5000
 ```
 
-- http://127.0.0.1:5000  
-- http://127.0.0.1:5000/admin  
-- Password ដើម: `admin123`
+## Render
+Web Service + Disk `/var/data` · see `render.yaml`

@@ -65,9 +65,13 @@ def generate(
     telegram_user_id: str,
     bakong_account_id: str | None = None,
     merchant_name: str | None = None,
+    machine_id: str | None = None,
+    profile_key: str | None = None,
 ) -> dict:
+    # secret_key or profile_key (alias used by some merchant dashboards)
+    key = (secret_key or profile_key or "").strip()
     payload = {
-        "secret_key": secret_key,
+        "secret_key": key,
         "amount": float(amount),
         "verify_key": verify_key,
         "telegram_user_id": str(telegram_user_id),
@@ -76,6 +80,11 @@ def generate(
         payload["bakong_account_id"] = bakong_account_id
     if merchant_name:
         payload["merchant_name"] = merchant_name
+    # optional fields if dashboard provides them (ignored if API does not use them)
+    if machine_id:
+        payload["machine_id"] = machine_id
+    if profile_key and profile_key != key:
+        payload["profile_key"] = profile_key
     return _post("/api/v1/payment/generate", payload)
 
 
