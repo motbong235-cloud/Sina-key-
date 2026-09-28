@@ -21,7 +21,6 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-import payway
 import khmer_system
 
 BASE = Path(__file__).resolve().parent
@@ -130,7 +129,6 @@ def catalog():
             "SITE_TAGLINE": d.get("settings", {}).get("SITE_TAGLINE", ""),
             "TELEGRAM": d.get("settings", {}).get("TELEGRAM", ""),
             "CONTACT_NOTE": d.get("settings", {}).get("CONTACT_NOTE", ""),
-            "PAYMENT_QR": d.get("settings", {}).get("PAYMENT_QR", ""),
             "BAKONG_ID": d.get("settings", {}).get("BAKONG_ID", ""),
             "SHOP_NAME": d.get("settings", {}).get("SHOP_NAME", "Sina Key"),
             "PAYMENT_NOTE": d.get("settings", {}).get("PAYMENT_NOTE", "ស្កេន KHQR បង់តាមតម្លៃ product · រួចចុច បានបង់ហើយ"),
@@ -160,17 +158,29 @@ def _pop_stock_item(d, product_id):
     return delivery, delivery_file
 
 
+def _ks_conf(s):
+    """Khmer System config — settings ក្នុង db.json មុន, បើគ្មាន fallback ទៅ ENV
+    (KHMER_SECRET_KEY / KHMER_PROFILE_KEY / KHMER_MACHINE_ID / KHMER_MERCHANT_NAME / BAKONG_ID)
+    ដូច្នេះទោះ db.json ត្រូវលុប (redeploy ដោយគ្មាន disk) key ក៏មិនបាត់។"""
+    g = lambda k: str(s.get(k) or os.environ.get(k) or "").strip()
+    return {
+        "secret": g("KHMER_SECRET_KEY") or g("KHMER_PROFILE_KEY"),
+        "profile": g("KHMER_PROFILE_KEY"),
+        "machine": g("KHMER_MACHINE_ID"),
+        "merchant": g("KHMER_MERCHANT_NAME"),
+        "bakong": g("BAKONG_ID"),
+    }
+
+
 def _payment_info(d):
     s = d.get("settings") or {}
     return {
-        "PAYMENT_QR": s.get("PAYMENT_QR") or "",
+        "PAYMENT_QR": "",
         "BAKONG_ID": s.get("BAKONG_ID") or "",
         "SHOP_NAME": s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key",
         "PAYMENT_NOTE": s.get("PAYMENT_NOTE") or "ស្កេន KHQR បង់តាមតម្លៃ · រួចចុច បានបង់ហើយ",
         "AUTO_DELIVER": bool(s.get("AUTO_DELIVER", True)),
-        "PAYWAY_ENABLED": bool(s.get("PAYWAY_MERCHANT_ID") and s.get("PAYWAY_API_KEY")),
-        "PAYWAY_SANDBOX": bool(s.get("PAYWAY_SANDBOX", True)),
-        "KHMER_ENABLED": bool((s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip()),
+        "KHMER_ENABLED": bool(_ks_conf(s)["secret"]),
     }
 
 
@@ -225,11 +235,11 @@ def create_order():
     d.setdefault("orders", []).insert(0, order)
 
     pay = _payment_info(d)
-    payway_qr = None
     s = d.get("settings") or {}
 
-    # --- KHMER SYSTEM (preferred when configured) ---
-    ks_secret = (s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip()
+    # --- KHMER SYSTEM (ប្រព័ន្ធបង់ប្រាក់តែមួយគត់) ---
+    ksc = _ks_conf(s)
+    ks_secret = ksc["secret"]
     if ks_secret:
         try:
             vkey = khmer_system.make_verify_key()
@@ -241,10 +251,10 @@ def create_order():
                 amount=float(product["price"]),
                 verify_key=vkey,
                 telegram_user_id=tg_id,
-                bakong_account_id=(s.get("BAKONG_ID") or None) or None,
-                merchant_name=(s.get("KHMER_MERCHANT_NAME") or s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
-                machine_id=(s.get("KHMER_MACHINE_ID") or None) or None,
-                profile_key=(s.get("KHMER_PROFILE_KEY") or None) or None,
+                bakong_account_id=ksc["bakong"] or None,
+                merchant_name=(ksc["merchant"] or s.get("SHOP_NAME") or s.get("SITE_NAME") or "Sina Key"),
+                machine_id=ksc["machine"] or None,
+                profile_key=ksc["profile"] or None,
             )
             if resp.get("success") and (resp.get("qr_image_url") or resp.get("qr_string")):
                 order["ks_verify_key"] = vkey
@@ -259,47 +269,10 @@ def create_order():
         except Exception as e:
             order["ks_error"] = str(e)
 
-    mid = (s.get("PAYWAY_MERCHANT_ID") or "").strip()
-    key = (s.get("PAYWAY_API_KEY") or "").strip()
-    # ABA PayWay only if Khmer System not used
-    if not order.get("ks_verify_key") and mid and key:
-        # ABA PayWay dynamic QR
-        try:
-            base = request.url_root.rstrip("/")
-            cb = base + "/api/payway/callback"
-            resp = payway.generate_qr(
-                merchant_id=mid,
-                api_key=key,
-                tran_id=order_id.replace("SK", "T")[:20],
-                amount=float(product["price"]),
-                currency=s.get("CURRENCY") or "USD",
-                sandbox=bool(s.get("PAYWAY_SANDBOX", True)),
-                callback_url=cb,
-                first_name="Customer",
-                last_name="Sina",
-                phone="",
-                items_name=product["name"],
-                lifetime=30,
-            )
-            st = (resp.get("status") or {})
-            code = str(st.get("code", ""))
-            if code in ("0", "00") or resp.get("qrImage"):
-                payway_qr = {
-                    "qrImage": resp.get("qrImage") or "",
-                    "qrString": resp.get("qrString") or "",
-                    "deeplink": resp.get("abapay_deeplink") or "",
-                    "tran_id": order_id.replace("SK", "T")[:20],
-                }
-                order["payway_tran_id"] = payway_qr["tran_id"]
-                if payway_qr["qrImage"]:
-                    pay["PAYMENT_QR"] = payway_qr["qrImage"]
-                    pay["PAYWAY_DYNAMIC"] = True
-                    pay["PAYWAY_DEEPLINK"] = payway_qr["deeplink"]
-            else:
-                order["payway_error"] = st.get("message") or str(resp)[:200]
-        except Exception as e:
-            order["payway_error"] = str(e)
-
+    if not order.get("ks_verify_key"):
+        # Khmer System មិនទាន់ setup ឬ generate QR បរាជ័យ → មិនបង្កើត order (មិន db_write)
+        err = order.get("ks_error") or ("Admin មិនទាន់បំពេញ Khmer System Key ក្នុង /admin → Settings" if not ks_secret else "បង្កើត QR បរាជ័យ")
+        return jsonify({"ok": False, "error": err, "ks_error": err}), 502
 
     db_write(d)
     ks_data = None
@@ -311,25 +284,19 @@ def create_order():
             "qr_string": pay.get("KS_QR_STRING") or "",
         }
         msg = "សូមស្កេន KHQR (Khmer System) · auto verify"
-    elif payway_qr:
-        msg = "សូមស្កេន ABA KHQR បង់ប្រាក់"
-    else:
-        msg = "សូមស្កេន KHQR បង់ប្រាក់"
     return jsonify({
         "ok": True,
         "order": order,
         "payment": pay,
-        "payway": payway_qr,
         "khmer_system": ks_data,
         "ks_error": order.get("ks_error"),
-        "payway_error": order.get("payway_error"),
         "message": msg,
     })
 
 
 @app.route("/api/order/check-payment", methods=["POST"])
 def check_payment():
-    """Poll Khmer System or ABA PayWay until paid, then fulfill."""
+    """Poll Khmer System until paid, then fulfill."""
     body = request.get_json(force=True, silent=True) or {}
     oid = (body.get("order_id") or body.get("id") or "").strip().upper()
     if not oid:
@@ -344,9 +311,9 @@ def check_payment():
     s = d.get("settings") or {}
 
     # Khmer System
-    if order.get("ks_verify_key") and (s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip():
+    if order.get("ks_verify_key") and _ks_conf(s)["secret"]:
         resp = khmer_system.check(
-            secret_key=(s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip(),
+            secret_key=_ks_conf(s)["secret"],
             verify_key=order["ks_verify_key"],
             telegram_user_id=order.get("ks_telegram_user_id") or "0",
         )
@@ -356,7 +323,7 @@ def check_payment():
             # confirm credit (best-effort)
             try:
                 khmer_system.confirm(
-                    secret_key=(s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip(),
+                    secret_key=_ks_conf(s)["secret"],
                     verify_key=order["ks_verify_key"],
                     telegram_user_id=order.get("ks_telegram_user_id") or "0",
                 )
@@ -370,64 +337,7 @@ def check_payment():
             return jsonify({"ok": True, "order": order, "payment_status": "expired", "message": "QR ផុតកំណត់"})
         return jsonify({"ok": True, "order": order, "payment_status": st or "pending", "message": "រង់ចាំបង់ប្រាក់"})
 
-    # fallback ABA PayWay
-    mid = (s.get("PAYWAY_MERCHANT_ID") or "").strip()
-    key = (s.get("PAYWAY_API_KEY") or "").strip()
-    if mid and key and order.get("payway_tran_id"):
-        resp = payway.check_transaction(
-            merchant_id=mid, api_key=key, tran_id=order["payway_tran_id"],
-            sandbox=bool(s.get("PAYWAY_SANDBOX", True)),
-        )
-        data = resp.get("data") or {}
-        status = (data.get("payment_status") or "").upper()
-        if status in ("APPROVED", "PRE-AUTH") or data.get("payment_status_code") == 0:
-            _fulfill_order(d, order)
-            db_write(d)
-            return jsonify({"ok": True, "order": order, "payment_status": "completed", "message": "បង់រួច — deliver"})
-        return jsonify({"ok": True, "order": order, "payment_status": status or "PENDING", "message": "រង់ចាំបង់ប្រាក់"})
-
     return jsonify({"ok": True, "order": order, "payment_status": "pending", "message": "រង់ចាំបង់ / confirm"})
-
-
-@app.route("/api/order/check-payway", methods=["POST"])
-def check_payway():
-    """Poll ABA PayWay transaction status; auto-fulfill if APPROVED."""
-    body = request.get_json(force=True, silent=True) or {}
-    oid = (body.get("order_id") or body.get("id") or "").strip().upper()
-    if not oid:
-        return jsonify({"ok": False, "error": "Missing order_id"}), 400
-    d = db_read()
-    order = next((o for o in d.get("orders", []) if str(o.get("id", "")).upper() == oid), None)
-    if not order:
-        return jsonify({"ok": False, "error": "Order not found"}), 404
-    if order.get("status") in ("paid", "delivered"):
-        return jsonify({"ok": True, "order": order, "payment_status": "APPROVED", "message": "Paid"})
-
-    s = d.get("settings") or {}
-    mid = (s.get("PAYWAY_MERCHANT_ID") or "").strip()
-    key = (s.get("PAYWAY_API_KEY") or "").strip()
-    if not mid or not key:
-        return jsonify({"ok": False, "error": "PayWay not configured"}), 400
-    tran_id = order.get("payway_tran_id") or oid.replace("SK", "T")[:20]
-    resp = payway.check_transaction(
-        merchant_id=mid,
-        api_key=key,
-        tran_id=tran_id,
-        sandbox=bool(s.get("PAYWAY_SANDBOX", True)),
-    )
-    data = resp.get("data") or {}
-    status = (data.get("payment_status") or "").upper()
-    if status in ("APPROVED", "PRE-AUTH") or data.get("payment_status_code") == 0:
-        _fulfill_order(d, order)
-        db_write(d)
-        return jsonify({"ok": True, "order": order, "payment_status": status or "APPROVED", "message": "បង់រួច — deliver"})
-    return jsonify({
-        "ok": True,
-        "order": order,
-        "payment_status": status or "PENDING",
-        "message": "រង់ចាំបង់ប្រាក់" if status in ("", "PENDING") else status,
-        "raw": {"code": (resp.get("status") or {}).get("code"), "msg": (resp.get("status") or {}).get("message")},
-    })
 
 
 @app.route("/api/order/check-ks", methods=["POST"])
@@ -445,7 +355,7 @@ def check_ks():
         return jsonify({"ok": True, "order": order, "payment_status": "completed", "message": "Paid"})
 
     s = d.get("settings") or {}
-    secret = (s.get("KHMER_SECRET_KEY") or "").strip()
+    secret = _ks_conf(s)["secret"]
     vkey = order.get("ks_verify_key")
     tg_id = order.get("ks_telegram_user_id") or order.get("ks_telegram_id")
     if not secret or not vkey or not tg_id:
@@ -473,50 +383,6 @@ def check_ks():
     })
 
 
-@app.route("/api/payway/callback", methods=["POST", "GET"])
-def payway_callback():
-    """ABA PayWay payment notification (return_url / callback)."""
-    body = {}
-    if request.method == "POST":
-        body = request.get_json(force=True, silent=True) or {}
-        if not body:
-            body = request.form.to_dict() if request.form else {}
-    else:
-        body = request.args.to_dict()
-
-    # Common fields vary; try several
-    tran_id = (
-        body.get("tran_id")
-        or body.get("transaction_id")
-        or (body.get("data") or {}).get("tran_id")
-        or ""
-    )
-    status = (
-        body.get("payment_status")
-        or body.get("status")
-        or (body.get("data") or {}).get("payment_status")
-        or ""
-    )
-    if isinstance(status, dict):
-        status = status.get("message") or status.get("code") or ""
-
-    d = db_read()
-    order = None
-    if tran_id:
-        order = next(
-            (o for o in d.get("orders", []) if o.get("payway_tran_id") == tran_id or o.get("id", "").replace("SK", "T")[:20] == tran_id),
-            None,
-        )
-    if order and order.get("status") not in ("paid", "delivered"):
-        st = str(status).upper()
-        if st in ("APPROVED", "0", "00", "SUCCESS", "PAID") or body.get("payment_status_code") == 0:
-            _fulfill_order(d, order)
-            order["payway_callback"] = True
-            db_write(d)
-
-    return jsonify({"ok": True})
-
-
 @app.route("/api/order/confirm-paid", methods=["POST"])
 def confirm_paid():
     """User confirms they paid via KHQR — auto-deliver if enabled + stock."""
@@ -537,24 +403,24 @@ def confirm_paid():
     s = d.get("settings") or {}
     auto = bool(s.get("AUTO_DELIVER", True))
 
-    # If PayWay configured, verify with ABA first
-    mid = (s.get("PAYWAY_MERCHANT_ID") or "").strip()
-    key = (s.get("PAYWAY_API_KEY") or "").strip()
-    if mid and key and order.get("payway_tran_id"):
-        resp = payway.check_transaction(
-            merchant_id=mid,
-            api_key=key,
-            tran_id=order["payway_tran_id"],
-            sandbox=bool(s.get("PAYWAY_SANDBOX", True)),
-        )
-        data = resp.get("data") or {}
-        st = (data.get("payment_status") or "").upper()
-        if st not in ("APPROVED", "PRE-AUTH") and data.get("payment_status_code") != 0:
-            return jsonify({
-                "ok": False,
-                "error": "ABA មិនទាន់ទទួលប្រាក់ (status=" + (st or "PENDING") + ")",
-                "payment_status": st or "PENDING",
-            }), 402
+    # ផ្ទៀងផ្ទាត់ជាមួយ Khmer System មុន — មិនទាន់បង់ = មិន deliver
+    secret = _ks_conf(s)["secret"]
+    vkey = order.get("ks_verify_key")
+    tg_id = order.get("ks_telegram_user_id") or order.get("ks_telegram_id")
+    if not secret or not vkey or not tg_id:
+        return jsonify({"ok": False, "error": "Order នេះមិនមាន Khmer System payment"}), 400
+    resp = khmer_system.check(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+    st = (resp.get("status") or "").lower()
+    if st != "completed":
+        return jsonify({
+            "ok": False,
+            "error": "Khmer System មិនទាន់ទទួលប្រាក់ (status=" + (st or "pending") + ")",
+            "payment_status": st or "pending",
+        }), 402
+    try:
+        khmer_system.confirm(secret_key=secret, verify_key=vkey, telegram_user_id=str(tg_id))
+    except Exception:
+        pass
 
     if auto:
         _fulfill_order(d, order)
@@ -632,6 +498,8 @@ def admin_data():
         "orders": d.get("orders", [])[:100],
         "stock_files": {k: len(v) if isinstance(v, list) else 0 for k, v in (d.get("stock_files") or {}).items()},
         "keygen_history": (d.get("keygen_history") or [])[:30],
+        "storage_persistent": bool(os.environ.get("DATA_DIR")),
+        "ks_env": bool(_ks_conf({})["secret"]),
     })
 
 
@@ -917,11 +785,11 @@ def admin_settings():
     s = d.setdefault("settings", {})
     for k in (
         "SITE_NAME", "SITE_TAGLINE", "TELEGRAM", "CONTACT_NOTE", "ADMIN_PASSWORD",
-        "PAYMENT_QR", "BAKONG_ID", "SHOP_NAME", "PAYMENT_NOTE", "AUTO_DELIVER",
-        "PAYWAY_MERCHANT_ID", "PAYWAY_API_KEY", "PAYWAY_SANDBOX", "CURRENCY", "KHMER_SECRET_KEY", "BAKONG_ID", "SHOP_NAME",
+        "BAKONG_ID", "AUTO_DELIVER",
+        "KHMER_SECRET_KEY", "KHMER_PROFILE_KEY", "KHMER_MACHINE_ID", "KHMER_MERCHANT_NAME",
     ):
         if k in body and body[k] is not None:
-            if k in ("AUTO_DELIVER", "PAYWAY_SANDBOX"):
+            if k == "AUTO_DELIVER":
                 s[k] = bool(body[k]) if not isinstance(body[k], str) else body[k] in ("1", "true", "True", True)
             else:
                 s[k] = body[k]
@@ -953,28 +821,6 @@ def admin_upload_product_image():
                 break
         db_write(d)
     return jsonify({"ok": True, "url": url, "product_id": int(pid) if pid.isdigit() else None})
-
-
-@app.route("/api/admin/upload-qr", methods=["POST"])
-@admin_required
-def admin_upload_qr():
-    """Upload KHQR / Bakong payment QR image."""
-    f = request.files.get("file") or request.files.get("qr")
-    if not f or not f.filename:
-        return jsonify({"ok": False, "error": "No QR file"}), 400
-    name = secure_filename(f.filename) or "qr.png"
-    ext = name.rsplit(".", 1)[-1].lower() if "." in name else "png"
-    if ext not in ("png", "jpg", "jpeg", "webp", "gif"):
-        return jsonify({"ok": False, "error": "QR must be image"}), 400
-    rel = f"payment_qr.{ext}"
-    path = UPLOAD_DIR / rel
-    f.save(path)
-    url = f"/api/media/{rel}"
-    d = db_read()
-    s = d.setdefault("settings", {})
-    s["PAYMENT_QR"] = url
-    db_write(d)
-    return jsonify({"ok": True, "url": url})
 
 
 @app.route("/api/media/<path:filename>")
