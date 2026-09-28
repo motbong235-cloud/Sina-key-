@@ -218,6 +218,7 @@ th{color:var(--muted);font-weight:700}
 
     <div id="t-settings" class="card hidden">
       <h3 style="margin-bottom:12px;font-weight:700">Settings</h3>
+      <div id="persistWarn" class="hidden" style="background:rgba(248,113,113,.12);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px">⚠️ Server មិនទាន់កំណត់ <b>DATA_DIR</b> (persistent disk) — ពេល redeploy/restart Settings ទាំងអស់ (រួមទាំង Khmer System Key) នឹងបាត់។ ដោះស្រាយ៖ ភ្ជាប់ Disk ហើយកំណត់ ENV <code>DATA_DIR</code> ឬដាក់ ENV <code>KHMER_SECRET_KEY</code> ជំនួស។</div>
       <label>Site name</label><input id="sName">
       <label>Tagline</label><input id="sTag">
       <label>Telegram link</label><input id="sTg" placeholder="https://t.me/...">
@@ -230,7 +231,7 @@ th{color:var(--muted);font-weight:700}
         · បំពេញ Profile Key + Machine ID ពី dashboard
       </p>
       <label>Profile Key / Secret Key *</label>
-      <input id="sKsKey" type="password" placeholder="sk_live_xxxxxxxx ឬ Profile Key">
+      <input id="sKsKey" type="password" autocomplete="new-password" placeholder="sk_live_xxxxxxxx ឬ Profile Key">
       <label>Machine ID</label>
       <input id="sKsMachine" placeholder="Machine / Device ID ពី Khmer System">
       <label>Bakong Account ID (optional)</label>
@@ -238,27 +239,9 @@ th{color:var(--muted);font-weight:700}
       <label>Merchant / Shop name on QR</label>
       <input id="sKsMerchant" placeholder="Sina Key">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
-      <h3 style="margin-bottom:12px;font-weight:700">💳 ABA PayWay (ផ្ទាល់)</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">sandbox.payway.com.kh · developer.payway.com.kh</p>
-      <label>PayWay Merchant ID</label><input id="sPwMid" placeholder="your_merchant_id">
-      <label>PayWay API Key</label><input id="sPwKey" type="password" placeholder="API key from ABA">
-      <label>Environment</label>
-      <select id="sPwSandbox"><option value="1">Sandbox (test)</option><option value="0">Production</option></select>
-      <label>Currency</label>
-      <select id="sCurrency"><option value="USD">USD</option><option value="KHR">KHR</option></select>
-      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
-      <h3 style="margin-bottom:12px;font-weight:700">QR ធម្មតា (បើគ្មាន PayWay)</h3>
-      <label>Shop name</label><input id="sShop" placeholder="Sina Key">
-      <label>Payment note</label><input id="sPayNote" placeholder="ស្កេន KHQR បង់តាមតម្លៃ">
       <label>Auto deliver</label>
       <select id="sAuto"><option value="1">បើក</option><option value="0">បិទ (រង់ចាំ admin)</option></select>
-      <div class="upload-zone" style="margin-top:8px">
-        <label style="text-align:center;text-transform:none">Upload KHQR / Bakong QR image</label>
-        <input type="file" id="qrFile" accept="image/*">
-        <button class="btn btn-gold" type="button" onclick="uploadQR()">Upload QR</button>
-        <div id="qrPreview" style="margin-top:10px"></div>
-      </div>
-      <label>Admin password (ថ្មី)</label><input id="sPw" type="password" placeholder="ទុកទទេ បើមិនប្តូរ">
+      <label>Admin password (ថ្មី)</label><input id="sPw" type="password" autocomplete="new-password" placeholder="ទុកទទេ បើមិនប្តូរ">
       <button class="btn btn-blue" onclick="saveSettings()">រក្សាទុក</button>
     </div>
   </div>
@@ -348,25 +331,17 @@ async function load(){
   const r = await api("admin/data");
   if(!r.ok){ $("#loginBox").classList.remove("hidden"); $("#panel").classList.add("hidden"); return; }
   DATA = r;
+  $("#persistWarn")?.classList.toggle("hidden", !!r.storage_persistent || !!r.ks_env);
   renderOrders(); renderProducts(); fillKgProducts(); renderKgHistory();
   $("#sName").value = r.settings.SITE_NAME||"";
   $("#sTag").value = r.settings.SITE_TAGLINE||"";
   $("#sTg").value = r.settings.TELEGRAM||"";
   $("#sNote").value = r.settings.CONTACT_NOTE||"";
-  if($("#sShop")) $("#sShop").value = r.settings.SHOP_NAME||r.settings.SITE_NAME||"";
   if($("#sBakong")) $("#sBakong").value = r.settings.BAKONG_ID||"";
-  if($("#sPayNote")) $("#sPayNote").value = r.settings.PAYMENT_NOTE||"";
   if($("#sAuto")) $("#sAuto").value = r.settings.AUTO_DELIVER === false ? "0" : "1";
   if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_SECRET_KEY||r.settings.KHMER_PROFILE_KEY||"";
   if($("#sKsMachine")) $("#sKsMachine").value = r.settings.KHMER_MACHINE_ID||"";
   if($("#sKsMerchant")) $("#sKsMerchant").value = r.settings.KHMER_MERCHANT_NAME||r.settings.SHOP_NAME||"";
-  if($("#sPwMid")) $("#sPwMid").value = r.settings.PAYWAY_MERCHANT_ID||"";
-  if($("#sPwKey")) $("#sPwKey").value = r.settings.PAYWAY_API_KEY||"";
-  if($("#sPwSandbox")) $("#sPwSandbox").value = r.settings.PAYWAY_SANDBOX === false ? "0" : "1";
-  if($("#sCurrency")) $("#sCurrency").value = r.settings.CURRENCY||"USD";
-    if(r.settings.PAYMENT_QR && $("#qrPreview")){
-    $("#qrPreview").innerHTML = '<img src="'+r.settings.PAYMENT_QR+'" style="max-width:160px;border-radius:10px;background:#fff;padding:6px">';
-  }
   if(!$("#stockPid").value) {
     const info = Object.entries(r.stock_files||{}).map(([k,v]) => `P${k}:${v}`).join(" · ");
     $("#stockInfo").textContent = info || "មិនទាន់មាន stock";
@@ -546,35 +521,17 @@ async function saveSettings(){
   const body = {
     SITE_NAME: $("#sName").value, SITE_TAGLINE: $("#sTag").value,
     TELEGRAM: $("#sTg").value, CONTACT_NOTE: $("#sNote").value,
-    SHOP_NAME: $("#sShop")?.value || "",
     BAKONG_ID: $("#sBakong")?.value || "",
-    PAYMENT_NOTE: $("#sPayNote")?.value || "",
     AUTO_DELIVER: ($("#sAuto")?.value || "1") === "1",
     KHMER_SECRET_KEY: $("#sKsKey")?.value || "",
     KHMER_PROFILE_KEY: $("#sKsKey")?.value || "",
     KHMER_MACHINE_ID: $("#sKsMachine")?.value || "",
     KHMER_MERCHANT_NAME: $("#sKsMerchant")?.value || "",
-    PAYWAY_MERCHANT_ID: $("#sPwMid")?.value || "",
-    PAYWAY_API_KEY: $("#sPwKey")?.value || "",
-    PAYWAY_SANDBOX: ($("#sPwSandbox")?.value || "1") === "1",
-    CURRENCY: $("#sCurrency")?.value || "USD",
   };
   const pw = $("#sPw").value;
   if(pw) body.ADMIN_PASSWORD = pw;
   await api("admin/settings", {method:"PUT", body:JSON.stringify(body)});
   alert("រក្សាទុកហើយ"); load();
-}
-async function uploadQR(){
-  const input = $("#qrFile");
-  if(!input.files || !input.files.length){ alert("ជ្រើសរូប QR"); return; }
-  const fd = new FormData();
-  fd.append("file", input.files[0]);
-  const r = await fetch("/api/admin/upload-qr", { method:"POST", body: fd });
-  const j = await r.json();
-  if(!j.ok){ alert(j.error||"Fail"); return; }
-  $("#qrPreview").innerHTML = '<img src="'+j.url+'" style="max-width:160px;border-radius:10px;background:#fff;padding:6px">';
-  alert("QR uploaded");
-  load();
 }
 api("admin/me").then(r => {
   if(r.admin){ $("#loginBox").classList.add("hidden"); $("#panel").classList.remove("hidden"); load(); }

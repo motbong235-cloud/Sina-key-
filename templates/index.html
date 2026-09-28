@@ -245,19 +245,16 @@ async function submitBuy(id){
   if(!r.ok){ toast(r.error||"បរាជ័យ", true); closeModal(); return; }
   const o = r.order;
   const pay = r.payment || {};
-  const isPayway = !!(r.payway && (r.payway.qrImage || pay.PAYWAY_DYNAMIC)) || !!pay.KS_DYNAMIC;
-  const isKs = !!(r.khmer_system && (r.khmer_system.qr_image_url || pay.KHMER_SYSTEM)) || !!pay.KS_DYNAMIC;
-  const label = isKs ? " · Khmer System" : (isPayway ? " · ABA PayWay" : (pay.BAKONG_ID ? " · " + esc(pay.BAKONG_ID) : ""));
-  const tip = isKs ? "ស្កេន KHQR (គ្រប់ធនាគារ Bakong) — auto deliver" : (isPayway ? "ស្កេន ABA KHQR" : esc(pay.PAYMENT_NOTE||"ស្កេន QR បង់ប្រាក់"));
+  const label = " · Khmer System";
+  const tip = "ស្កេន KHQR (គ្រប់ធនាគារ Bakong) — auto deliver";
   let payHtml = `<div class="pay-box">
     <div class="shop">${esc(pay.SHOP_NAME||"Sina Key")}${label}</div>
     <div class="amt">${money(o.price)}</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${tip}</div>
     ${pay.PAYMENT_QR ? `<img src="${esc(pay.PAYMENT_QR)}" alt="KHQR">` : `<div style="padding:16px;color:#f87171;font-size:13px;line-height:1.5;background:rgba(248,113,113,.08);border-radius:12px">
       ❌ មិនមាន QR<br>
-      <span style="color:var(--muted);font-size:12px">${esc(r.ks_error || r.payway_error || "Admin ត្រូវបំពេញ Khmer System Profile Key ឬ Upload QR ក្នុង /admin → Settings")}</span>
+      <span style="color:var(--muted);font-size:12px">${esc(r.ks_error || "Admin ត្រូវបំពេញ Khmer System Key ក្នុង /admin → Settings")}</span>
     </div>`}
-    ${pay.PAYWAY_DEEPLINK ? `<a class="btn btn-ghost" style="width:100%;margin-top:8px" href="${esc(pay.PAYWAY_DEEPLINK)}">បើក ABA Mobile</a>` : ""}
     <div style="font-size:11px;color:var(--muted);margin-top:6px">Order: <b class="oid" style="font-size:13px">${esc(o.id)}</b></div>
     <div id="payStatus" style="font-size:12px;margin-top:8px;color:var(--muted)">រង់ចាំបង់ប្រាក់...</div>
     <button type="button" class="btn btn-primary" style="width:100%;margin-top:12px;padding:12px" id="btnPaid" onclick="confirmPaid('${esc(o.id)}')">
@@ -267,13 +264,11 @@ async function submitBuy(id){
   const box = $("#buyResult");
   if(box) box.innerHTML = payHtml;
   toast("Order " + o.id + " — ស្កេន QR");
-  // auto poll always for KS/Payway; also poll check-payment for KS
-  if(isPayway || isKs) startPaywayPoll(o.id);
-  else startPaywayPoll(o.id); // still poll in case static + admin confirms
+  startPaymentPoll(o.id);
 }
 
 let _payPoll = null;
-function startPaywayPoll(orderId){
+function startPaymentPoll(orderId){
   if(_payPoll) clearInterval(_payPoll);
   let n = 0;
   _payPoll = setInterval(async () => {
