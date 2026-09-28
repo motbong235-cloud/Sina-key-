@@ -170,7 +170,7 @@ def _payment_info(d):
         "AUTO_DELIVER": bool(s.get("AUTO_DELIVER", True)),
         "PAYWAY_ENABLED": bool(s.get("PAYWAY_MERCHANT_ID") and s.get("PAYWAY_API_KEY")),
         "PAYWAY_SANDBOX": bool(s.get("PAYWAY_SANDBOX", True)),
-        "KHMER_ENABLED": bool(s.get("KHMER_SECRET_KEY", "KHMER_MERCHANT_NAME", "KHMER_MACHINE_ID", "KHMER_PROFILE_KEY")),
+        "KHMER_ENABLED": bool((s.get("KHMER_SECRET_KEY") or s.get("KHMER_PROFILE_KEY") or "").strip()),
     }
 
 
@@ -197,7 +197,7 @@ def create_order():
     note = (body.get("note") or "").strip()
 
     if not buyer:
-        return jsonify({"ok": False, "error": "សូមបញ្ចូល Telegram / Contact"}), 400
+        buyer = "guest_" + secrets.token_hex(4)
 
     d = db_read()
     product = next((p for p in d["products"] if p["id"] == product_id and p.get("active", True)), None)
@@ -321,6 +321,8 @@ def create_order():
         "payment": pay,
         "payway": payway_qr,
         "khmer_system": ks_data,
+        "ks_error": order.get("ks_error"),
+        "payway_error": order.get("payway_error"),
         "message": msg,
     })
 
