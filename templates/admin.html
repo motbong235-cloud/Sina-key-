@@ -225,16 +225,17 @@ th{color:var(--muted);font-weight:700}
       <label>Contact note</label><input id="sNote">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <h3 style="margin-bottom:12px;font-weight:700">🇰🇭 KHMER SYSTEM (Auto Pay)</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.55">
         ចុះឈ្មោះ: <a href="https://khmer-system.com" target="_blank" style="color:#93C5FD">khmer-system.com</a>
-        · API Docs: <a href="https://khmer-system.com/api-docs" target="_blank" style="color:#93C5FD">api-docs</a>
-        · បំពេញ Profile Key + Machine ID ពី dashboard
+        · API Docs: <a href="https://khmer-system.com/api-docs" target="_blank" style="color:#93C5FD">api-docs</a><br>
+        <b style="color:#FBBF24">សំខាន់:</b> ប្រើ <b>secret_key</b> ពី dashboard (ឧ. <code>sk_live_...</code>) ·
+        Merchant ត្រូវភ្ជាប់ Bakong ក្នុង dashboard មុន · QR ផុត 10 នាទី
       </p>
-      <label>Profile Key / Secret Key *</label>
-      <input id="sKsKey" type="password" autocomplete="new-password" placeholder="sk_live_xxxxxxxx ឬ Profile Key">
-      <label>Machine ID</label>
-      <input id="sKsMachine" placeholder="Machine / Device ID ពី Khmer System">
-      <label>Bakong Account ID (optional)</label>
+      <label>Secret Key * (sk_live_...)</label>
+      <input id="sKsKey" type="password" autocomplete="new-password" placeholder="sk_live_xxxxxxxxxxxxxxxx">
+      <label>Machine ID (optional — API មិនតម្រូវ)</label>
+      <input id="sKsMachine" placeholder="ទុកទទេ បើមិនមាន">
+      <label>Bakong Account ID (optional — override)</label>
       <input id="sBakong" placeholder="name@aclb">
       <label>Merchant / Shop name on QR</label>
       <input id="sKsMerchant" placeholder="Sina Key">
