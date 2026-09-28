@@ -218,27 +218,21 @@ th{color:var(--muted);font-weight:700}
 
     <div id="t-settings" class="card hidden">
       <h3 style="margin-bottom:12px;font-weight:700">Settings</h3>
-      <div id="persistWarn" class="hidden" style="background:rgba(248,113,113,.12);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px">⚠️ Server មិនទាន់កំណត់ <b>DATA_DIR</b> (persistent disk) — ពេល redeploy/restart Settings ទាំងអស់ (រួមទាំង Khmer System Key) នឹងបាត់។ ដោះស្រាយ៖ ភ្ជាប់ Disk ហើយកំណត់ ENV <code>DATA_DIR</code> ឬដាក់ ENV <code>KHMER_SECRET_KEY</code> ជំនួស។</div>
+      <div id="persistWarn" class="hidden" style="background:rgba(248,113,113,.12);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.6;margin-bottom:12px">⚠️ Server មិនទាន់កំណត់ <b>DATA_DIR</b> (persistent disk) — ពេល redeploy/restart Settings ទាំងអស់ (រួមទាំង Khmer System Key) នឹងបាត់។ ដោះស្រាយ៖ ភ្ជាប់ Disk ហើយកំណត់ ENV <code>DATA_DIR</code> ឬដាក់ ENV <code>KHMER_API_KEY</code> / <code>KHMER_MERCHANT_ID</code> ជំនួស។</div>
       <label>Site name</label><input id="sName">
       <label>Tagline</label><input id="sTag">
       <label>Telegram link</label><input id="sTg" placeholder="https://t.me/...">
       <label>Contact note</label><input id="sNote">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <h3 style="margin-bottom:12px;font-weight:700">🇰🇭 KHMER SYSTEM (Auto Pay)</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.55">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
         ចុះឈ្មោះ: <a href="https://khmer-system.com" target="_blank" style="color:#93C5FD">khmer-system.com</a>
-        · API Docs: <a href="https://khmer-system.com/api-docs" target="_blank" style="color:#93C5FD">api-docs</a><br>
-        <b style="color:#FBBF24">សំខាន់:</b> ប្រើ <b>secret_key</b> ពី dashboard (ឧ. <code>sk_live_...</code>) ·
-        Merchant ត្រូវភ្ជាប់ Bakong ក្នុង dashboard មុន · QR ផុត 10 នាទី
+        · Profile Key យកពី /operator/profile · Merchant ID យកពី Dashboard (ឧ. r72mCt) — ត្រូវការទាំង ២យ៉ាង
       </p>
-      <label>Secret Key * (sk_live_...)</label>
-      <input id="sKsKey" type="password" autocomplete="new-password" placeholder="sk_live_xxxxxxxxxxxxxxxx">
-      <label>Machine ID (optional — API មិនតម្រូវ)</label>
-      <input id="sKsMachine" placeholder="ទុកទទេ បើមិនមាន">
-      <label>Bakong Account ID (optional — override)</label>
-      <input id="sBakong" placeholder="name@aclb">
-      <label>Merchant / Shop name on QR</label>
-      <input id="sKsMerchant" placeholder="Sina Key">
+      <label>Profile Key *</label>
+      <input id="sKsKey" type="password" autocomplete="new-password" placeholder="Profile Key ពី khmer-system.com/operator/profile">
+      <label>Merchant ID *</label>
+      <input id="sKsMerchant" placeholder="ឧ. r72mCt">
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <label>Auto deliver</label>
       <select id="sAuto"><option value="1">បើក</option><option value="0">បិទ (រង់ចាំ admin)</option></select>
@@ -338,11 +332,9 @@ async function load(){
   $("#sTag").value = r.settings.SITE_TAGLINE||"";
   $("#sTg").value = r.settings.TELEGRAM||"";
   $("#sNote").value = r.settings.CONTACT_NOTE||"";
-  if($("#sBakong")) $("#sBakong").value = r.settings.BAKONG_ID||"";
   if($("#sAuto")) $("#sAuto").value = r.settings.AUTO_DELIVER === false ? "0" : "1";
-  if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_SECRET_KEY||r.settings.KHMER_PROFILE_KEY||"";
-  if($("#sKsMachine")) $("#sKsMachine").value = r.settings.KHMER_MACHINE_ID||"";
-  if($("#sKsMerchant")) $("#sKsMerchant").value = r.settings.KHMER_MERCHANT_NAME||r.settings.SHOP_NAME||"";
+  if($("#sKsKey")) $("#sKsKey").value = r.settings.KHMER_API_KEY||"";
+  if($("#sKsMerchant")) $("#sKsMerchant").value = r.settings.KHMER_MERCHANT_ID||"";
   if(!$("#stockPid").value) {
     const info = Object.entries(r.stock_files||{}).map(([k,v]) => `P${k}:${v}`).join(" · ");
     $("#stockInfo").textContent = info || "មិនទាន់មាន stock";
@@ -522,12 +514,9 @@ async function saveSettings(){
   const body = {
     SITE_NAME: $("#sName").value, SITE_TAGLINE: $("#sTag").value,
     TELEGRAM: $("#sTg").value, CONTACT_NOTE: $("#sNote").value,
-    BAKONG_ID: $("#sBakong")?.value || "",
     AUTO_DELIVER: ($("#sAuto")?.value || "1") === "1",
-    KHMER_SECRET_KEY: $("#sKsKey")?.value || "",
-    KHMER_PROFILE_KEY: $("#sKsKey")?.value || "",
-    KHMER_MACHINE_ID: $("#sKsMachine")?.value || "",
-    KHMER_MERCHANT_NAME: $("#sKsMerchant")?.value || "",
+    KHMER_API_KEY: $("#sKsKey")?.value || "",
+    KHMER_MERCHANT_ID: $("#sKsMerchant")?.value || "",
   };
   const pw = $("#sPw").value;
   if(pw) body.ADMIN_PASSWORD = pw;
